@@ -1,0 +1,57 @@
+
+.modal {
+  position: absolute;
+  left: 37.5%;
+  right: 37.5%;
+  top: 33.84%;
+  bottom: 33.84%;
+  border-radius: 8px;
+  width:480px;
+  heigth: 331px;
+}
+
+
+.modal-dialog-fix {
+  width: 480px;
+  height: 331px;
+  border-radius: 8px !important;
+}
+
+.modal-content-fix {
+  width: 480px;
+  height: 331px;
+  top: 50%;
+  border-radius: 8px !important;
+}
+
+.modal-body-content {
+  text-align: center;
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 30px;
+  padding: 3em !important;
+}
+
+.modal-footer-fix{
+  margin: auto;
+  width:130px;
+  margin-bottom:20px;
+}
+
+.line-modal{
+  /* Line 186 */
+
+
+position: absolute;
+width: 340px;
+height: 0px;
+left: 17%;
+top: 70%;
+
+/* skyblue/5 */
+
+border: 1px solid #C4CBD6;
+}
+

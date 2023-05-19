@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.dashboard.DashboardMapper">
+    <select id="selectSensorList" parameterType="String" resultType="com.gn.sungha.dashboard.SelectListVO">
+        /* DashboardMapper.selectSensorList - 센서정보 콤보박스 리스트 조회 */
+        select
+        sc.sensor_id id,
+        sc.sensor name
+        from
+        dbo.tb_sensor_info si
+        left join dbo.tb_sensor_control sc on si.sensor_id = sc.sensor_id
+        where 1=1
+        <if test="organizationId != null and organizationId != '' and organizationId != 'total' ">
+            and sc.organization_id = #{organizationId}
+        </if>
+        <if test="localId != null and localId != '' and localId != 'total' ">
+            and sc.local_id = #{localId}
+        </if>
+    </select>
+
+    <select id="selectDashSensorInfoList" parameterType="com.gn.sungha.dashboard.DashboaardSearchVO" resultType="com.gn.sungha.dashboard.DashSensorInfoVO">
+        /* DashboardMapper.selectDashSensorInfoList - 센서측정정보 리스트 조회 */
+        WITH numbered_orders AS (
+            SELECT *,
+                ROW_NUMBER() OVER (
+                PARTITION BY sensor_id
+            ORDER BY reg_date_time DESC
+            ) AS row_number
+            FROM dbo.tb_sensor
+        ),
+        last_log AS (
+            SELECT
+                sensor_id,
+                chip_id,
+                message_interval,
+                temp,
+                humi,
+                conduc,
+                ph,
+                nitro,
+                phos,
+                pota,
+                batcaprema,
+                ip_addr,
+                reg_date_time
+            FROM numbered_orders
+            WHERE numbered_orders.row_number = 1
+        )
+
+        select
+            sc.sensor_id,
+            sc.sensor,
+            sc.organization_id,
+            sc.local_id,
+            ll.chip_id,
+            ll.message_interval,
+            ll.temp,
+            ll.humi,
+            ll.conduc,
+            ll.ph,
+            ll.nitro,
+            ll.phos,
+            ll.pota,
+            ll.batcaprema,
+            ll.ip_addr,
+            ll.reg_date_time,
+            si.latitude_y,
+            si.longitude_x
+        from dbo.tb_sensor_info si
+        left join dbo.tb_sensor_control sc on si.sensor_id = sc.sensor_id
+        left join last_log ll on si.sensor_id = ll.sensor_id
+        where 1=1
+        <if test="sensorId != null and sensorId != '' and sensorId != 'total' ">
+            and sc.sensor_id = #{sensorId}
+        </if>
+        <if test="organizationId != null and organizationId != '' and organizationId != 'total' ">
+            and sc.organization_id = #{organizationId}
+        </if>
+        <if test="localId != null and localId != '' and localId != 'total' ">
+            and sc.local_id = #{localId}
+        </if>
+    </select>
+    <select id="selectDashIrrigationInfoList" parameterType="com.gn.sungha.dashboard.DashboaardSearchVO" resultType="com.gn.sungha.dashboard.DashIrrigationInfoVO">
+        /* DashboardMapper.selectDashIrrigationInfoList - 관수측정정보 리스트 조회 */
+        SELECT irrigation_id,
+               irrigation_name,
+               local_id,
+               reg_date_time,
+               irrigation_detail,
+               organization_id,
+               mod_date_time,
+               latitude_y,
+               longitude_x
+        FROM dbo.tb_irrigation_info
+        where 1=1
+        <if test="irrigationId != null and irrigationId != '' and irrigationId != 'total' ">
+            and irrigation_id = #{irrigationId}
+        </if>
+        <if test="localId != null and localId != '' and localId != 'total' ">
+            and local_id = #{localId}
+        </if>
+    </select>
+</mapper>

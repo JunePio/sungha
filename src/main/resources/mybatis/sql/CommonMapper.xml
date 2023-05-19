@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.common.CommonMapper">
+
+	<select id="selectOrgNmList" parameterType="String" resultType="com.gn.sungha.organizationInfo.organizationInfoVO">
+	/* CommonNmListMapper.selectOrgNmList - 기관정보 콤보박스 리스트 조회 */
+		select
+			to2.organization_id, /* 기관ID */
+			to2.organization     /* 기관명 */
+		from dbo.tb_organization to2 
+		where 1=1
+		
+	</select>
+	
+	<select id="selectFirstLocalNmList" resultType="com.gn.sungha.local.localVO">
+	/* CommonNmListMapper.selectFirstLocalNmList - 지역정보 콤보박스 리스트 처음 조회 */
+		select
+			local_id,  /* 지역ID */
+			local      /* 지역명 */
+		from dbo.tb_local tl 
+		where organization_id = (
+			select
+				to2.organization_id /* 기관ID */
+			from dbo.tb_organization to2
+			limit 1 
+		)	
+	</select>
+	
+	<select id="selectLocalNmList" parameterType="String" resultType="com.gn.sungha.local.localVO">
+	/* CommonNmListMapper.selectLocalNmList - 지역정보 콤보박스 리스트 조회 */
+		select
+			local_id,  /* 지역ID */
+			local      /* 지역명 */
+		from dbo.tb_local tl 
+		where 1=1
+		<if test="organizationId != null and organizationId != '' and organizationId != 'total' ">
+			and tl.organization_id = #{organizationId}
+		</if>
+	</select>
+	
+	<select id="selectSensorComboList" parameterType="String" resultType="com.gn.sungha.sensor.SensorVO">
+	/* CommonNmListMapper.selectSensorComboList - 센서 콤보박스 리스트 조회 */
+		select
+			tsc.sensor_id,  /* 센서ID */
+			tsc.sensor      /* 센서명 */
+		from dbo.tb_sensor_control tsc
+		join dbo.tb_sensor_info tsi
+		on tsc.sensor_id = tsi.sensor_id
+		where 1=1
+		<if test="localId != null and localId != '' and localId != 'total' ">
+			and tsc.local_id = #{localId}
+		</if>
+	</select>
+</mapper>

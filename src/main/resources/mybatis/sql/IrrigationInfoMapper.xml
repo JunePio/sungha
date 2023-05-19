@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.irrigationInfo.IrrigationInfoMapper">
+
+	<!-- 관수정보 조회 -->
+	<select id="selectIrrigationInfoList" parameterType="String" resultType="com.gn.sungha.irrigationInfo.IrrigationInfoVO">
+		/* irrigationInfoMapper.selectIrrigationInfoList - 관수정보 리스트 조회 */
+		select
+		    rownum,				/* 순번 */
+			irrigation_id,		/* 관수ID */
+			irrigation,			/* 관수명 */
+			stream_time,		/* 유량투입시간(분) */
+			stream_flow,		/* 양액투입량(L) */
+			nutrient_time,		/* 양액투입시간(분) */
+			nutrient_solution,	/* 양액투입량(L) */
+			organization_id,	/* 현장ID */
+			reg_date            /* 등록일시 */
+		from
+			(
+				select
+					row_number() over (order by irr.irrigation_id asc) as rownum,
+				    irr.irrigation_id,
+				    irr.irrigation,
+				    irr.stream_time,
+				    irr.stream_flow,
+				    irr.nutrient_time,
+				    irr.nutrient_solution,
+				    irr.organization_id,
+				    substring(irr.reg_date_time, 0, 5) || '. ' || substring(irr.reg_date_time, 5, 2) || '. ' || substring(irr.reg_date_time, 7, 2) || '.' as reg_date
+				from dbo.TB_Irrigation irr
+				join dbo.TB_Organization org
+				on org.organization_id = irr.organization_id
+				where 1 = 1
+				<if test="irrigationId != null and irrigationId != '' ">
+					and irr.irrigation_id = #{irrigationId}
+				</if>
+				<if test="irrigation != null and irrigation != '' ">
+					and irr.irrigation = #{irrigation}
+				</if>
+				<if test="organizationId != null and organizationId != '' ">
+					and irr.organization_id = #{organizationId}
+				</if>
+				group by irr.irrigation_id, 
+				    irr.irrigation,
+				    irr.stream_time,
+				    irr.stream_flow,
+				    irr.nutrient_time,
+				    irr.nutrient_solution,
+				    irr.organization_id,
+				    irr.reg_date_time,
+				    irr.organization_id
+			)a
+		order by ${sortColumn} ${sortType}
+	</select>
+	
+	<!-- 관수정보 리스트조회 갯수 -->
+	<select id="selectIrrigationInfoListTotalCnt" parameterType="String" resultType="int">
+		select 
+			count(*)
+		from(
+			select
+				irr.irrigation_id,
+				irr.irrigation,
+				irr.stream_time,
+				irr.stream_flow,
+				irr.nutrient_time,
+				irr.nutrient_solution,
+				irr.organization_id
+			from dbo.TB_Irrigation irr
+			where 1=1
+			<if test="irrigationId != null and irrigationId != '' ">
+				and irr.irrigation_id = #{irrigationId}
+			</if>
+			<if test="irrigation != null and irrigation != '' ">
+				and irr.irrigation = #{irrigation}
+			</if>
+			<if test="organizationId != null and organizationId != '' ">
+				and irr.organization_id = #{organizationId}
+			</if>
+			group by irr.irrigation_id, 
+				    irr.irrigation,
+				    irr.stream_time,
+				    irr.stream_flow,
+				    irr.nutrient_time,
+				    irr.nutrient_solution,
+				    irr.organization_id,
+				    irr.reg_date_time,
+				    irr.organization_id
+		)a
+	</select>
+	
+	<!-- 관수정보 상세조회 -->
+	<select id="selectIrrigationInfoDetail" parameterType="String" resultType="com.gn.sungha.irrigationInfo.IrrigationInfoVO">
+		select
+			irrigation_id,
+			irrigation,
+			stream_time,
+			stream_flow,
+			nutrient_time,
+			nutrient_solution,
+			organization_id,
+			substring(reg_date_time, 0, 5) || '. ' || substring(reg_date_time, 5, 2) || '. ' || substring(reg_date_time, 7, 2) || '.' as reg_date
+		from dbo.tb_irrigation
+		where irrigation_id = #{irrigationId}
+		
+	</select>
+	
+	<!-- 관수정보 상세조회 수정 -->
+	<select id="selectIrrigationInfoModDetail" parameterType="String" resultType="com.gn.sungha.irrigationInfo.IrrigationInfoVO">
+		select
+			irrigation_id,
+			irrigation,
+			stream_time,
+			stream_flow,
+			nutrient_time,
+			nutrient_solution,
+			organization_id,
+			substring(reg_date_time, 0, 5) || '. ' || substring(reg_date_time, 5, 2) || '. ' || substring(reg_date_time, 7, 2) || '.' as reg_date
+		from dbo.tb_irrigation
+		where irrigation_id = #{irrigationId}
+		
+	</select>
+	
+	<!-- 관수정보 아이디 중복체크 -->
+	<select id="selectDupCheck" parameterType="String" resultType="com.gn.sungha.irrigationInfo.IrrigationInfoVO">
+		select
+			irrigation_id
+		from dbo.tb_irrigation
+		where irrigation_id = #{irrigationId}
+	</select>
+	
+	<!-- 관수정보 저장 -->
+	<insert id="insertIrrigationInfoSave" parameterType="String">
+		insert into dbo.tb_irrigation
+		(
+			irrigation_id,
+			irrigation,
+			stream_time,
+			stream_flow,
+			nutrient_time,
+			nutrient_solution,
+			organization_id,
+			reg_date_time
+		)
+		values
+		(
+			#{irrigationId},
+			#{irrigation},
+			#{streamTime},
+			#{streamFlow},
+			#{nutrientTime},
+			#{nutrientSolution},
+			#{organizationId},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI'), 'YYYYMMDDHH24MMII')
+		)
+	</insert>
+	
+	<!-- 관수정보 수정 -->
+	<update id="updateIrrigationInfoMod" parameterType="String">
+		update dbo.tb_irrigation
+		set
+		    irrigation_id = #{irrigationId},
+			irrigation = #{irrigation},
+			stream_time = #{streamTime},
+			stream_flow = #{streamFlow},
+			nutrient_time = #{nutrientTime},
+			nutrient_solution = #{nutrientSolution},
+			organization_id = #{organizationId},
+			reg_date_time  = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI'), 'YYYYMMDDHH24MMII') 
+		where irrigation_id = #{irrigationIdDetail}
+	</update>
+	
+	<!-- 관수정보 삭제 -->
+	<delete id="deleteIrrigationInfoDel" parameterType="String">
+		delete from dbo.tb_irrigation
+		where irrigation_id = #{irrigationId}
+	</delete>
+
+</mapper>

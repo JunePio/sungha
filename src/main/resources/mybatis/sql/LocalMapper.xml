@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.local.localMapper">	
+
+	<select id="selectLocalList" parameterType="com.gn.sungha.local.localVO" resultType="com.gn.sungha.local.localVO">
+		/* localMapper.selectLocalList - 지역 리스트 조회 */
+		select
+			rownum,          /* 순번 */				
+			local,           /* 지역명 */
+			organization,    /* 기관명 */
+			local_address,    /* 지역주소 */
+			local_nx,        /* 지역 X좌표 */
+			local_ny,        /* 지역 Y좌표 */
+			case when mod_date is null or mod_date = '' then reg_date else mod_date end as reg_date,            /* 등록일자 및 수정일자 */
+			organization_id, /* 기관ID */
+			local_id         /* 지역ID */
+		from
+			(select 
+				row_number() over (order by lc.reg_date_time asc) as rownum,
+				lc.local,
+				org.organization,		
+				(case when lc.local_address_main is null then ' ' else lc.local_address_main end) || ' ' || (case when lc.local_address_sub is null then ' ' else lc.local_address_sub end) as local_address,			
+				lc.local_nx, 
+				lc.local_ny,
+				case when lc.reg_date_time is null then ''
+				     when lc.reg_date_time = '' then ''
+				     else substring(lc.reg_date_time, 0, 5) || '. ' || substring(lc.reg_date_time, 5, 2) || '. ' || substring(lc.reg_date_time, 7, 2) || '.' 
+				end as reg_date,
+				case when lc.mod_date_time is null then ''
+				     when lc.mod_date_time = '' then ''
+					 else substring(lc.mod_date_time, 0, 5) || '. ' || substring(lc.mod_date_time, 5, 2) || '. ' || substring(lc.mod_date_time, 7, 2) || '.'
+				end as mod_date,
+				lc.organization_id,
+				lc.local_id
+			from dbo.TB_Local lc
+			left join dbo.tb_organization org
+			on lc.organization_id  = org.organization_id
+			where 1=1
+				<if test="organizationId != null and organizationId != '' and organizationId != 'total' ">
+					and lc.organization_id = #{organizationId}
+				</if>
+				<if test="localId != null and localId != '' and localId != 'total' ">
+					and lc.local_id = #{localId}
+				</if>
+					
+			) a
+		order by ${sortColumn} ${sortType}
+		limit #{pagination.listSize} OFFSET #{pagination.startList}
+		
+	</select>
+	
+	<select id="selectLocalListExcel" parameterType="com.gn.sungha.local.localVO" resultType="com.gn.sungha.local.localVO">
+		/* localMapper.selectLocalListExcel - 지역 리스트 조회 엑셀 */
+		select
+			rownum,          /* 순번 */				
+			local,           /* 지역명 */
+			organization,    /* 기관명 */
+			local_address,    /* 지역주소 */
+			local_nx,        /* 지역 X좌표 */
+			local_ny,        /* 지역 Y좌표 */
+			case when mod_date is null or mod_date = '' then reg_date else mod_date end as reg_date,            /* 등록일자 및 수정일자 */
+			organization_id, /* 기관ID */
+			local_id         /* 지역ID */
+		from
+			(select 
+				row_number() over (order by lc.reg_date_time asc) as rownum,
+				lc.local,
+				org.organization,		
+				(case when lc.local_address_main is null then ' ' else lc.local_address_main end) || ' ' || (case when lc.local_address_sub is null then ' ' else lc.local_address_sub end) as local_address,			
+				lc.local_nx, 
+				lc.local_ny,
+				case when lc.reg_date_time is null then ''
+				     when lc.reg_date_time = '' then ''
+				     else substring(lc.reg_date_time, 0, 5) || '. ' || substring(lc.reg_date_time, 5, 2) || '. ' || substring(lc.reg_date_time, 7, 2) || '.' 
+				end as reg_date,
+				case when lc.mod_date_time is null then ''
+				     when lc.mod_date_time = '' then ''
+					 else substring(lc.mod_date_time, 0, 5) || '. ' || substring(lc.mod_date_time, 5, 2) || '. ' || substring(lc.mod_date_time, 7, 2) || '.'
+				end as mod_date,
+				lc.organization_id,
+				lc.local_id
+			from dbo.TB_Local lc
+			left join dbo.tb_organization org
+			on lc.organization_id  = org.organization_id
+			where 1=1
+				<if test="organizationId != null and organizationId != '' and organizationId != 'total' ">
+					and lc.organization_id = #{organizationId}
+				</if>
+				<if test="localId != null and localId != '' and localId != 'total' ">
+					and lc.local_id = #{localId}
+				</if>
+					
+			) a
+		order by ${sortColumn} ${sortType}
+		
+	</select>
+	
+	<select id="selectLocalListTotalCnt" parameterType="String" resultType="int">
+		/* localMapper.selectLocalListTotalCnt - 지역 리스트 개수 조회 */
+		select
+				count(*)
+			from
+				(select 
+					lc.local_id
+				from dbo.TB_Local lc
+				left join dbo.tb_organization org
+				on lc.organization_id  = org.organization_id
+				where 1=1
+				<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+					and lc.organization_id = #{searchingOrgId}
+				</if>
+				<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+					and lc.local_id = #{searchingLocalId}
+				</if>	
+				) a
+			
+		
+	</select>
+	
+	<select id="selectLatestLocalId" resultType="String">
+	/* localMapper.selectLatestLocalId - 최신 지역ID 조회 */
+		select
+			local_id
+		from dbo.tb_local
+		order by local_id desc
+		limit 1
+	</select>
+	
+	<select id="selectLocalIdList" resultType="com.gn.sungha.local.localVO">
+	/* localMapper.selectLocalIdList - 기관정보 삭제시 지역정보도 같이 삭제하기 위해서 지역ID 조회 필요 */
+		select
+			local_id
+		from dbo.tb_local
+		where organization_id = #{organizationId}
+	</select>
+	
+	<insert id="insertLocalSave" parameterType="String">
+	/* localMapper.insertLocalSave - 지역 저장 */
+		insert into dbo.tb_local
+		(
+			local_id,      /* 지역ID */
+			local,         /* 지역명 */
+			organization_id, /* 기관ID */
+			local_nx,      /* X좌표 */
+			local_ny,      /* Y좌표 */
+			reg_date_time, /* 등록일시 */
+			local_address_main, /* 지역주소 메인 */
+			local_address_sub /* 지역주소 서브 */
+		)
+		values
+		(
+			#{localId},
+			#{localNm},
+			#{registOrgId},
+			#{localNx},
+			#{localNy},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			#{localAddressMain},
+			#{localAddressSub}
+		)
+	</insert>
+	
+	<insert id="insertLocalFileSave" parameterType="String">
+	/* localMapper.insertLocalFileSave - 지역 파일 저장 */
+		insert into dbo.tb_local_file
+		(
+			local_id,      /* 지역ID */
+			uuid_name,     /* UUID 이름 */
+			ori_file_name, /* 원본파일이름 */
+			file_size,     /* 파일 사이즈 KB */
+			num             /* 파일 순번 */
+		)
+		values
+		(
+			#{localId},
+			#{uuidNm},
+			#{oriFileName},
+			#{fileSize},
+			#{no}
+		)
+	</insert>
+	
+	<select id="selectLocalModDetail" parameterType="String" resultType="com.gn.sungha.local.localVO">
+	/* localMapper.selectLocalModDetail - 지역 수정조회 */
+		select
+			tl.organization_id,
+			to2.organization,
+			tl.local_id,
+			tl.local,
+			tl.local_address_main,
+			tl.local_address_sub,
+			tl.local_nx,
+			tl.local_ny
+		from dbo.tb_local tl
+		join dbo.tb_organization to2
+		on tl.organization_id = to2.organization_id
+		where tl.local_id = #{localId}
+	</select>
+	
+	<select id="selectLocalFileList" parameterType="String" resultType="com.gn.sungha.local.localVO">
+	/* localMapper.selectLocalFileList - 지역 파일 조회 */
+		select
+			tlf.uuid_name,
+			tlf.ori_file_name,
+			tlf.file_size
+		from dbo.tb_local_file tlf
+		where tlf.local_id = #{localId}
+	</select>
+	
+	<update id="updateLocalModNoFile" parameterType="String">
+	/* localMapper.updateLocalModNoFile - 파일 업로드 없이 지역 수정 */
+		update dbo.tb_local
+		set
+			organization_id = #{orgIdMod},
+			local_id = #{localIdMod},
+			local = #{localNmMod},
+			local_address_main = #{localAddressMainMod},
+			local_address_sub = #{localAddressSubMod},
+			local_nx = #{localNxMod},
+			local_ny = #{localNyMod},
+			mod_date_time = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+		where local_id = #{localIdMod}
+	</update>
+	
+	<update id="updateLocalMod" parameterType="String">
+	/* localMapper.updateLocalMod - 지역 수정 */
+		update dbo.tb_local
+		set
+			organization_id = #{orgIdMod},
+			local_id = #{localIdMod},
+			local = #{localNmMod},
+			local_address_main = #{localAddressMainMod},
+			local_address_sub = #{localAddressSubMod},
+			local_nx = #{localNxMod},
+			local_ny = #{localNyMod},
+			mod_date_time = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+		where local_id = #{localIdMod}
+	</update>
+
+	<update id="updateLocalFileMod" parameterType="String">
+	/* localMapper.updateLocalFileMod - 지역 파일 수정 */
+		update dbo.tb_local_file
+		set
+			uuid_name = #{uuid},
+			ori_file_name = #{oriFileName},
+			file_size = #{fileSize}
+		where local_id = #{localIdMod}
+		and num = #{no}
+	</update>
+
+	<select id="localDelValidationCheck" parameterType="String" resultType="com.gn.sungha.local.localVO">
+	/* localMapper.localDelValidationCheck - 지역 삭제전 사용자, 디바이스, 밸브 수 있는지 체크 */
+		select
+		    a.local_id,
+			a.user_cnt,
+			b.sensor_cnt,
+			d.device_cnt
+		from (
+			select
+				tl.local_id,
+				COUNT(tu.id) as user_cnt
+			from dbo.tb_local tl
+			left outer join dbo.tb_role_local trl
+			on tl.local_id = trl.local_id 
+			left outer join dbo.tb_users tu
+			on trl.id = tu.id
+			group by tl.local_id
+		) a
+		join 
+		(
+			select
+				tl.local_id,
+				COUNT(distinct case when ts.sensor_id is not null then 1 else null end) as sensor_cnt
+			from dbo.tb_local tl
+			left outer join dbo.tb_sensor_control tsc 
+			on tl.local_id = tsc.local_id 
+			left outer join dbo.tb_sensor ts 
+			on tsc.sensor_id  = ts.sensor_id	
+			group by tl.local_id
+		) b
+		on a.local_id = b.local_id
+		join
+		(
+			select 
+				tl.local_id,
+				COUNT(distinct tdc.device_id) as device_cnt
+			from dbo.tb_local tl 
+			left outer join dbo.tb_device td
+			on tl.local_id = td.local_id
+			left outer join dbo.tb_device_control tdc 
+			on td.device_id = tdc.device_id 
+			group by tl.local_id 
+		) d
+		on b.local_id = d.local_id
+		where 1=1
+		and a.local_id = #{localIdVal}
+	</select>
+	
+	<select id="selectEtcInfoCount" parameterType="String" resultType="com.gn.sungha.local.localVO">
+	/* localMapper.selectEtcInfoCount - 지역정보 삭제해도 되는지 사용자, 센서, 관수 체크 */
+		select
+		    a.local_id,
+		    a.local,
+		    case when a.reg_date_time is null then ''
+			     when a.reg_date_time = '' then ''
+			     else substring(a.reg_date_time, 0, 5) || '. ' || substring(a.reg_date_time, 5, 2) || '. ' || substring(a.reg_date_time, 7, 2) || '.'
+			end  reg_date,
+			case when a.mod_date_time is null then ''
+			     when a.mod_date_time = '' then ''
+			     else '(' || substring(a.mod_date_time, 0, 5) || '. ' || substring(a.mod_date_time, 5, 2) || '. ' || substring(a.mod_date_time, 7, 2) || '.)'
+			end  mod_date,
+			coalesce(c.user_cnt, 0) as user_cnt,
+			coalesce(b.sensor_use_cnt, 0) as sensor_use_cnt,
+			coalesce(b.sensor_cnt, 0) as sensor_cnt,
+			coalesce(d.device_cnt, 0) as device_cnt
+		from (
+			/* 지역 정보 */
+			select
+				to2.local_id,
+				to2.local,
+				to2.reg_date_time,
+				to2.mod_date_time
+			from  dbo.tb_local to2	
+		) a
+		left outer join 
+		(
+			/* 센서 수 */
+			select
+				to2.local_id,
+				COUNT(case when tsc.sensor_id is not null and info.out_yn = 'Y' then 1 else null end) as sensor_use_cnt,
+				COUNT(case when tsc.sensor_id is not null then 1 else null end) as sensor_cnt
+			from dbo.tb_local to2 
+			left outer join dbo.tb_sensor_control tsc 
+			on to2.local_id = tsc.local_id 
+			left outer join dbo.tb_sensor_info info 
+		    on info.sensor_id = tsc.sensor_id
+			group by to2.local_id
+		) b
+		on a.local_id = b.local_id
+		left outer join
+		(
+			/* 사용자 수 */
+			select
+				to2.local_id,
+				to2.local,
+				to2.reg_date_time,
+				to2.mod_date_time,
+				COUNT(distinct tu.username) as user_cnt
+			from  dbo.tb_local to2
+			join dbo.tb_role_local trl
+			on to2.local_id  = trl.local_id
+			join dbo.tb_users tu
+			on tu.id = trl.id
+			group by to2.local_id, to2.local, to2.reg_date_time, to2.mod_date_time
+		) c
+		on a.local_id = c.local_id
+		left outer join
+		(
+			/* 관수 수 */
+			select 
+				to2.local_id,
+				COUNT(distinct ti.irrigation_id) as device_cnt
+			from dbo.tb_local to2 
+			left outer join dbo.tb_irrigation_info ti
+			on to2.local_id = ti.local_id
+			left outer join dbo.tb_irrigation_control tic
+			on ti.irrigation_id = tic.irrigation_id 
+			group by to2.local_id 
+		) d
+		on a.local_id = d.local_id
+		where 1=1
+		and a.local_id = #{localId}
+		group by a.local_id, a.local, a.reg_date_time, a.mod_date_time, c.user_cnt, sensor_use_cnt, sensor_cnt, d.device_cnt
+	</select>
+	
+	<select id="selectOriFileName" parameterType="String" resultType="String">
+	/* localMapper.selectOriFileName - 원본파일 이름 조회 */
+		select
+			uuid_name
+		from dbo.tb_local_file
+		where local_id = #{localIdDel}
+	</select>
+	
+	<delete id="deleteLocal" parameterType="String">
+	/* organizationInfoMapper.deleteLocal - 지역 삭제 */
+		delete from dbo.tb_local
+		where local_id = #{localIdDel}
+	</delete>
+	
+	<delete id="deleteLocalFile" parameterType="String">
+	/* organizationInfoMapper.deleteLocalFile - 지역 파일 삭제 */
+		delete from dbo.tb_local_file
+		where local_id = #{localIdDel}
+	</delete>
+
+	<select id="selectLocalXY" parameterType="String" resultType="com.gn.sungha.local.localVO">
+	/* localMapper.selectLocalXY - 해당 지역의 위도, 경도 좌표 가져오기 */
+		select
+			local_nx,
+			local_ny
+		from dbo.tb_local
+		where local_id = #{localId}
+	</select>
+
+</mapper>

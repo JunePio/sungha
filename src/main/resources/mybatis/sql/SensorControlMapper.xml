@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.sensorControl.SensorControlMapper">
+
+	<select id="selectSensorControlList" parameterType="com.gn.sungha.sensorControl.SensorControlVO" resultType="com.gn.sungha.sensorControl.SensorControlVO">
+	/* SensorControlMapper.selectSensorControlList - 센서 설정 리스트 조회 */
+		select
+			rownum,       /* 번호 */
+		    sensor_id,    /* 센서ID */
+		    sensor,       /* 센서명 */
+		    irrigation_id,
+		    irrigation_name,
+		    usim_id,      /* 유심번호 */
+			local,		  /* 지역명 */  
+		    organization, /* 기관명 */
+		    batcaprema_value_min || '~' || batcaprema_value_max as batcaprema,
+			temp_value_min || '~' || temp_value_max as temp,
+			humi_value_min || '~' || humi_value_max as humi,
+			ph_value_min || '~' || ph_value_max as ph,
+			conduc_value_min || '~' || conduc_value_max as conduc,
+			nitro_value_min || '~' || nitro_value_max as nitro,
+			phos_value_min || '~' || phos_value_max as phos,
+			pota_value_min || '~' || pota_value_max as pota,
+			alarm_yn,
+			local_id,      /* 지역ID */
+		    organization_id /* 기관ID */
+		from (
+			select 
+				row_number() over (order by ts.sensor_id asc) as rownum,
+				tsc.sensor_id,
+				tsc.sensor,
+				tsi.irrigation_id,
+				tii.irrigation_name,
+				info.usim_id,
+				tl.local,
+				to2.organization,
+				case when tsc.batcaprema_value_min is null then '0' else tsc.batcaprema_value_min end as batcaprema_value_min,  /* 배터리 설정값 최저 */
+				case when tsc.batcaprema_value_max is null then '100' else tsc.batcaprema_value_max end as batcaprema_value_max,  /* 배터리 설정값 최고 */
+				case when tsc.temp_value_min is null then '-40' else tsc.temp_value_min end as temp_value_min,        /* 온도 설정값 최저 */
+				case when tsc.temp_value_max is null then '80' else tsc.temp_value_max end as temp_value_max,        /* 온도 설정값 최고 */
+				case when tsc.humi_value_min is null then '0' else tsc.humi_value_min end as humi_value_min,        /* 습도 설정값 최저 */
+				case when tsc.humi_value_max is null then '100' else tsc.humi_value_max end as humi_value_max,        /* 습도 설정값 최고 */
+				case when tsc.conduc_value_min is null then '0' else tsc.conduc_value_min end as conduc_value_min,      /* EC 설정값 최저 */
+				case when tsc.conduc_value_max is null then '20' else tsc.conduc_value_max end as conduc_value_max,      /* EC 설정값 최고 */
+				case when tsc.ph_value_min is null then '0' else tsc.ph_value_min end as ph_value_min,          /* pH 설정값 최저 */
+				case when tsc.ph_value_max is null then '14' else tsc.ph_value_max end as ph_value_max,          /* pH 설정값 최고 */
+				case when tsc.nitro_value_min is null then '0' else tsc.nitro_value_min end as nitro_value_min,       /* N 설정값 최저 */
+				case when tsc.nitro_value_max is null then '2000' else tsc.nitro_value_max end as nitro_value_max,       /* N 설정값 최고 */
+				case when tsc.phos_value_min is null then '0' else tsc.phos_value_min end as phos_value_min,         /* P 설정값 최저 */
+				case when tsc.phos_value_max is null then '2000' else tsc.phos_value_max end as phos_value_max,         /* P 설정값 최고 */
+				case when tsc.pota_value_min is null then '0' else tsc.pota_value_min end as pota_value_min,         /* K 설정값 최저 */
+				case when tsc.pota_value_max is null then '10' else tsc.pota_value_max end as pota_value_max,         /* K 설정값 최고 */
+				tsc.alarm_yn,
+				tl.local_id,
+				to2.organization_id
+			from dbo.tb_sensor_control tsc 
+			left outer join dbo.tb_local tl 
+			on tsc.local_id = tl.local_id 
+			left outer join dbo.tb_organization to2 
+			on tsc.organization_id = to2.organization_id 
+			left outer join dbo.tb_sensor_info info 
+			on info.sensor_id = tsc.sensor_id
+			left outer join dbo.tb_sensor ts
+			on tsc.sensor_id = ts.sensor_id
+			and (ts.sensor_id, ts.reg_date_time) in (
+				select
+					sensor_id,
+					MAX(reg_date_time) as reg_date_time
+				from dbo.tb_sensor
+				where ts.sensor_id = tsc.sensor_id
+				group by sensor_id
+			)
+			left outer join dbo.tb_sensor_irrigation tsi
+			on tsc.sensor_id = tsi.sensor_id 
+			left outer join dbo.tb_irrigation_info tii
+			on tsi.irrigation_id = tii.irrigation_id 
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and to2.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and tl.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorId' and searchingContent != null and searchingContent != '' ">
+				and lower(ts.sensor_id) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorNm' and searchingContent != null and searchingContent != '' ">
+				and lower(tsc.sensor) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'chipId' and searchingContent != null and searchingContent != '' ">
+				and lower(ts.chip_id) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+		) a
+		order by ${sortColumn} ${sortType}
+		limit #{pagination.listSize} OFFSET #{pagination.startList}
+		
+	</select>
+	
+	<select id="selectSensorControlListExcel" parameterType="String" resultType="com.gn.sungha.sensorControl.SensorControlVO">
+	/* SensorControlMapper.selectSensorControlListExcel - 센서 설정 리스트 조회 엑셀 */
+		select
+			rownum,       /* 번호 */
+		    sensor_id,    /* 센서ID */
+		    sensor,       /* 센서명 */
+		    irrigation_id,
+		    irrigation_name,
+		    usim_id,      /* 유심번호 */
+			local,		  /* 지역명 */  
+		    organization, /* 기관명 */
+		    batcaprema_value_min || '~' || batcaprema_value_max as batcaprema,
+			temp_value_min || '~' || temp_value_max as temp,
+			humi_value_min || '~' || humi_value_max as humi,
+			ph_value_min || '~' || ph_value_max as ph,
+			conduc_value_min || '~' || conduc_value_max as conduc,
+			nitro_value_min || '~' || nitro_value_max as nitro,
+			phos_value_min || '~' || phos_value_max as phos,
+			pota_value_min || '~' || pota_value_max as pota,
+			alarm_yn,
+			local_id,      /* 지역ID */
+		    organization_id /* 기관ID */
+		from (
+			select 
+				row_number() over (order by ts.sensor_id asc) as rownum,
+				tsc.sensor_id,
+				tsc.sensor,
+				tsi.irrigation_id,
+				tii.irrigation_name,
+				info.usim_id,
+				tl.local,
+				to2.organization,
+				case when tsc.batcaprema_value_min is null then '0' else tsc.batcaprema_value_min end as batcaprema_value_min,  /* 배터리 설정값 최저 */
+				case when tsc.batcaprema_value_max is null then '100' else tsc.batcaprema_value_max end as batcaprema_value_max,  /* 배터리 설정값 최고 */
+				case when tsc.temp_value_min is null then '-40' else tsc.temp_value_min end as temp_value_min,        /* 온도 설정값 최저 */
+				case when tsc.temp_value_max is null then '80' else tsc.temp_value_max end as temp_value_max,        /* 온도 설정값 최고 */
+				case when tsc.humi_value_min is null then '0' else tsc.humi_value_min end as humi_value_min,        /* 습도 설정값 최저 */
+				case when tsc.humi_value_max is null then '100' else tsc.humi_value_max end as humi_value_max,        /* 습도 설정값 최고 */
+				case when tsc.conduc_value_min is null then '0' else tsc.conduc_value_min end as conduc_value_min,      /* EC 설정값 최저 */
+				case when tsc.conduc_value_max is null then '20' else tsc.conduc_value_max end as conduc_value_max,      /* EC 설정값 최고 */
+				case when tsc.ph_value_min is null then '0' else tsc.ph_value_min end as ph_value_min,          /* pH 설정값 최저 */
+				case when tsc.ph_value_max is null then '14' else tsc.ph_value_max end as ph_value_max,          /* pH 설정값 최고 */
+				case when tsc.nitro_value_min is null then '0' else tsc.nitro_value_min end as nitro_value_min,       /* N 설정값 최저 */
+				case when tsc.nitro_value_max is null then '2000' else tsc.nitro_value_max end as nitro_value_max,       /* N 설정값 최고 */
+				case when tsc.phos_value_min is null then '0' else tsc.phos_value_min end as phos_value_min,         /* P 설정값 최저 */
+				case when tsc.phos_value_max is null then '2000' else tsc.phos_value_max end as phos_value_max,         /* P 설정값 최고 */
+				case when tsc.pota_value_min is null then '0' else tsc.pota_value_min end as pota_value_min,         /* K 설정값 최저 */
+				case when tsc.pota_value_max is null then '10' else tsc.pota_value_max end as pota_value_max,         /* K 설정값 최고 */
+				tsc.alarm_yn,
+				tl.local_id,
+				to2.organization_id
+			from dbo.tb_sensor_control tsc 
+			left outer join dbo.tb_local tl 
+			on tsc.local_id = tl.local_id 
+			left outer join dbo.tb_organization to2 
+			on tsc.organization_id = to2.organization_id 
+			left outer join dbo.tb_sensor_info info 
+			on info.sensor_id = tsc.sensor_id
+			left outer join dbo.tb_sensor ts
+			on tsc.sensor_id = ts.sensor_id
+			and (ts.sensor_id, ts.reg_date_time) in (
+				select
+					sensor_id,
+					MAX(reg_date_time) as reg_date_time
+				from dbo.tb_sensor
+				where ts.sensor_id = tsc.sensor_id
+				group by sensor_id
+			)
+			left outer join dbo.tb_sensor_irrigation tsi
+			on tsc.sensor_id = tsi.sensor_id 
+			left outer join dbo.tb_irrigation_info tii
+			on tsi.irrigation_id = tii.irrigation_id 
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and to2.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and tl.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorId' and searchingContent != null and searchingContent != '' ">
+				and lower(ts.sensor_id) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorNm' and searchingContent != null and searchingContent != '' ">
+				and lower(tsc.sensor) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'chipId' and searchingContent != null and searchingContent != '' ">
+				and lower(ts.chip_id) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+		) a
+		order by ${sortColumn} ${sortType}
+		
+	</select>
+	
+	<select id="selectSensorControlListTotalCnt" parameterType="String" resultType="int">
+	/* SensorControlMapper.selectSensorControlListTotalCnt - 센서 설정 개수 조회 */
+		select
+			count(*)
+		from (
+			select
+				ts.sensor_id
+			from dbo.tb_sensor_control tsc 
+			left outer join dbo.tb_local tl 
+			on tsc.local_id = tl.local_id 
+			left outer join dbo.tb_organization to2 
+			on tsc.organization_id = to2.organization_id 
+			left outer join dbo.tb_sensor_info info 
+			on info.sensor_id = tsc.sensor_id
+			left outer join dbo.tb_sensor ts
+			on tsc.sensor_id = ts.sensor_id
+			and (ts.sensor_id, ts.reg_date_time) in (
+				select
+					sensor_id,
+					MAX(reg_date_time) as reg_date_time
+				from dbo.tb_sensor
+				where ts.sensor_id = tsc.sensor_id
+				group by sensor_id
+			)
+			left outer join dbo.tb_sensor_irrigation tsi
+			on tsc.sensor_id = tsi.sensor_id 
+			left outer join dbo.tb_irrigation_info tii
+			on tsi.irrigation_id = tii.irrigation_id 
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and tsc.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and tl.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorId' and searchingContent != null and searchingContent != '' ">
+				and ts.sensor_id like '%' || #{searchingContent} || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorNm' and searchingContent != null and searchingContent != '' ">
+				and tsc.sensor like '%' || #{searchingContent} || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'chipId' and searchingContent != null and searchingContent != '' ">
+				and ts.chip_id like '%' || #{searchingContent} || '%'
+			</if>
+		) a
+	</select>
+	
+	<select id="selectSensorControlDetail" parameterType="String" resultType="com.gn.sungha.sensorControl.SensorControlVO">
+		/* SensorControlMapper.selectSensorControlDetail - 센서 설정 상세조회 */
+		select
+			tsc.sensor_id,       /* 센서ID */
+			tsc.sensor,          /* 센서명 */
+			tsi.irrigation_id,   /* 관수ID */
+			tii.irrigation_name, /* 관수명 */
+			to2.organization,    /* 기관명 */
+			tl.local,            /* 지역명 */
+			info.sensor_detail,  /* 센서 위치 설명 */
+			tsc.organization_id, /* 기관ID */
+			tsc.local_id,        /* 지역ID */
+			case when tsc.batcaprema_value_min is null then '0' else tsc.batcaprema_value_min end as batcaprema_value_min,  /* 배터리 설정값 최저 */
+			case when tsc.batcaprema_value_max is null then '100' else tsc.batcaprema_value_max end as batcaprema_value_max,  /* 배터리 설정값 최고 */
+			case when tsc.temp_value_min is null then '-40' else tsc.temp_value_min end as temp_value_min,        /* 온도 설정값 최저 */
+			case when tsc.temp_value_max is null then '80' else tsc.temp_value_max end as temp_value_max,        /* 온도 설정값 최고 */
+			case when tsc.humi_value_min is null then '0' else tsc.humi_value_min end as humi_value_min,        /* 습도 설정값 최저 */
+			case when tsc.humi_value_max is null then '100' else tsc.humi_value_max end as humi_value_max,        /* 습도 설정값 최고 */
+			case when tsc.conduc_value_min is null then '0' else tsc.conduc_value_min end as conduc_value_min,      /* EC 설정값 최저 */
+			case when tsc.conduc_value_max is null then '20' else tsc.conduc_value_max end as conduc_value_max,      /* EC 설정값 최고 */
+			case when tsc.ph_value_min is null then '0' else tsc.ph_value_min end as ph_value_min,          /* pH 설정값 최저 */
+			case when tsc.ph_value_max is null then '14' else tsc.ph_value_max end as ph_value_max,          /* pH 설정값 최고 */
+			case when tsc.nitro_value_min is null then '0' else tsc.nitro_value_min end as nitro_value_min,       /* N 설정값 최저 */
+			case when tsc.nitro_value_max is null then '2000' else tsc.nitro_value_max end as nitro_value_max,       /* N 설정값 최고 */
+			case when tsc.phos_value_min is null then '0' else tsc.phos_value_min end as phos_value_min,         /* P 설정값 최저 */
+			case when tsc.phos_value_max is null then '2000' else tsc.phos_value_max end as phos_value_max,         /* P 설정값 최고 */
+			case when tsc.pota_value_min is null then '0' else tsc.pota_value_min end as pota_value_min,         /* K 설정값 최저 */
+			case when tsc.pota_value_max is null then '10' else tsc.pota_value_max end as pota_value_max,         /* K 설정값 최고 */
+			tsc.alarm_yn
+		from dbo.tb_sensor_control tsc
+		left outer join dbo.tb_local tl 
+		on tsc.local_id = tl.local_id 
+		left outer join dbo.tb_sensor_info info
+		on tsc.sensor_id = info.sensor_id
+		left outer join dbo.tb_organization to2 
+		on tsc.organization_id = to2.organization_id 
+		left outer join dbo.tb_sensor_irrigation tsi
+		on tsc.sensor_id = tsi.sensor_id 
+		left outer join dbo.tb_irrigation_info tii
+		on tsi.irrigation_id = tii.irrigation_id 
+		where tsc.sensor_id = #{sensorId}
+		order by tsc.reg_date_time desc
+		limit 1
+	</select>
+	
+	<select id="selectSensorDetailForMail" parameterType="String" resultType="com.gn.sungha.sensorControl.SensorControlVO">
+		/* SensorControlMapper.selectSensorDetailForMail - 센서 모두 조회 */
+		select
+			ts.sensor_id,     /* 센서ID */
+			tsc.sensor,       /* 센서명 */
+			ts.chip_id,       /* 유심코드 */
+			to2.organization, /* 기관명 */
+			tl.local,         /* 지역명 */
+			tsi.sensor_detail,/* 센서 위치 설명 */
+			tsc.organization_id, /* 기관ID */
+			tsc.local_id,         /* 지역ID */
+			case when ts.batcaprema is null then '0' when ts.batcaprema = '' then '0' else ts.batcaprema end as batcaprema,    /* 배터리 잔량 */
+			case when ts.temp is null then '0' when ts.temp = '' then '0' else ts.temp end as temp,          /* 온도 */
+			case when ts.humi is null then '0' when ts.humi = '' then '0' else ts.humi end as humi,          /* 습도 */
+			case when ts.conduc is null then '0' when ts.conduc = '' then '0' else ts.conduc end as conduc,        /* 토양EC */
+			case when ts.ph is null then '0' when ts.ph = '' then '0' else ts.ph end as ph,            /* 수소이온농도지수 pH */
+			case when ts.nitro is null then '0' when ts.nitro = '' then '0' else ts.nitro end as nitro,         /* 질소 N */
+			case when ts.phos is null then '0' when ts.phos = '' then '0' else ts.phos end as phos,          /* 인 P */
+			case when ts.pota is null then '0' when ts.pota = '' then '0' else ts.pota end as pota,           /* 칼륨 K */
+			ts.reg_date_time
+		from dbo.tb_sensor ts
+			left outer join dbo.tb_sensor_info tsi 
+			on ts.sensor_id = tsi.sensor_id 
+			and (ts.sensor_id, ts.reg_date_time) = (select sensor_id, reg_date_time from dbo.tb_sensor a where sensor_id = ts.sensor_id order by a.reg_date_time desc limit 1)
+			left outer join dbo.tb_sensor_control tsc 
+			on ts.sensor_id = tsc.sensor_id
+			left outer join dbo.tb_local tl 
+			on tsc.local_id = tl.local_id 
+			left outer join dbo.tb_organization to2 
+			on tsc.organization_id = to2.organization_id 
+		where ts.sensor_id = #{sensorId}
+		order by ts.reg_date_time desc
+		limit 1
+	</select>
+	
+	<select id="selectSensorControlDetailForMail" resultType="com.gn.sungha.sensorControl.SensorControlVO">
+		/* SensorControlMapper.selectSensorControlDetailForMail - 센서 설정 모두 조회 */
+		select
+			tsi.sensor_id,     /* 센서ID */
+			tsc.sensor,       /* 센서명 */
+			ts.chip_id,       /* 유심코드 */
+			to2.organization, /* 기관명 */
+			tl.local,         /* 지역명 */
+			tsi.sensor_detail,/* 센서 위치 설명 */
+			tsc.organization_id, /* 기관ID */
+			tsc.local_id,         /* 지역ID */
+			case when tsc.batcaprema_value_min is null then '0' else tsc.batcaprema_value_min end as batcaprema_value_min,  /* 배터리 설정값 최저 */
+			case when tsc.batcaprema_value_max is null then '100' else tsc.batcaprema_value_max end as batcaprema_value_max,  /* 배터리 설정값 최고 */
+			case when tsc.temp_value_min is null then '-40' else tsc.temp_value_min end as temp_value_min,        /* 온도 설정값 최저 */
+			case when tsc.temp_value_max is null then '80' else tsc.temp_value_max end as temp_value_max,        /* 온도 설정값 최고 */
+			case when tsc.humi_value_min is null then '0' else tsc.humi_value_min end as humi_value_min,        /* 습도 설정값 최저 */
+			case when tsc.humi_value_max is null then '100' else tsc.humi_value_max end as humi_value_max,        /* 습도 설정값 최고 */
+			case when tsc.conduc_value_min is null then '0' else tsc.conduc_value_min end as conduc_value_min,      /* EC 설정값 최저 */
+			case when tsc.conduc_value_max is null then '20' else tsc.conduc_value_max end as conduc_value_max,      /* EC 설정값 최고 */
+			case when tsc.ph_value_min is null then '0' else tsc.ph_value_min end as ph_value_min,          /* pH 설정값 최저 */
+			case when tsc.ph_value_max is null then '14' else tsc.ph_value_max end as ph_value_max,          /* pH 설정값 최고 */
+			case when tsc.nitro_value_min is null then '0' else tsc.nitro_value_min end as nitro_value_min,       /* N 설정값 최저 */
+			case when tsc.nitro_value_max is null then '2000' else tsc.nitro_value_max end as nitro_value_max,       /* N 설정값 최고 */
+			case when tsc.phos_value_min is null then '0' else tsc.phos_value_min end as phos_value_min,         /* P 설정값 최저 */
+			case when tsc.phos_value_max is null then '2000' else tsc.phos_value_max end as phos_value_max,         /* P 설정값 최고 */
+			case when tsc.pota_value_min is null then '0' else tsc.pota_value_min end as pota_value_min,         /* K 설정값 최저 */
+			case when tsc.pota_value_max is null then '10' else tsc.pota_value_max end as pota_value_max,         /* K 설정값 최고 */
+			tsc.alarm_yn
+		from dbo.tb_sensor_info tsi 
+		join dbo.tb_sensor ts
+		on ts.sensor_id = tsi.sensor_id 
+		and (ts.sensor_id, ts.reg_date_time) = (select sensor_id, reg_date_time from dbo.tb_sensor a where sensor_id = ts.sensor_id order by a.reg_date_time desc limit 1)
+		left outer join dbo.tb_sensor_control tsc 
+		on tsi.sensor_id = tsc.sensor_id
+		left outer join dbo.tb_local tl 
+		on tsc.local_id = tl.local_id 
+		left outer join dbo.tb_organization to2 
+		on tsc.organization_id = to2.organization_id
+	</select>
+	
+	<update id="updateSensorControlMod" parameterType="String">
+	/* SensorControlMapper.updateSensorControlMod - 센서 설정 수정 저장 */
+	update dbo.tb_sensor_control
+	set
+		alarm_yn = #{alarmYn},
+		batcaprema_value_min = #{batteryMin},
+		batcaprema_value_max = #{batteryMax},
+		temp_value_min = #{temperatureMin},
+		temp_value_max = #{temperatureMax},
+		humi_value_min = #{humidityMin},
+		humi_value_max = #{humidityMax},
+		ph_value_min = #{pHMin},
+		ph_value_max = #{pHMax},
+		conduc_value_min = #{ECMin},
+		conduc_value_max = #{ECMax},
+		nitro_value_min = #{NMin},
+		nitro_value_max = #{NMax},
+		phos_value_min = #{PMin},
+		phos_value_max = #{PMax},
+		pota_value_min = #{KMin},
+		pota_value_max = #{KMax}
+	where sensor_id = #{sensorId}
+	</update>
+
+</mapper>

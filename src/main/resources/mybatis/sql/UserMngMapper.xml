@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.userMng.UserMngMapper">
+
+	<select id="selectUserMngList" parameterType="com.gn.sungha.userMng.UserMngVO" resultType="com.gn.sungha.userMng.UserMngVO">
+	/* UserMngMapper.selectUserMngList - 사용자관리 리스트 조회 */
+		select
+			rownum,             /* 번호 */
+			username,           /* 사용자ID */
+			name,               /* 사용자명 */
+			role_name,          /* 사용자레벨 */
+			tel_no,             /* 연락처 */
+			email,              /* 이메일 */
+			organization,       /* 기관명 */
+			case when local_cnt > 1 then split_part(locals::varchar, ',', 1) || ' 외 ' || local_cnt
+			     else locals
+		    end as locals,      /* 권한지역 */
+			case when mod_date is null or mod_date = '' then reg_date else mod_date end as reg_date,            /* 등록일자 및 수정일자 */
+			confirm_date,       /* 승인일 */
+			confirm_state,      /* 승인상태 */
+			cancel_date,        /* 취소일 */
+		    split_part(locals::varchar, ',', 1) as local_first,  /* 첫번째 지역명 */
+   			local_cnt           /* 지역명 개수 */
+		from (
+			select
+				row_number() over (order by tu.username asc) as rownum,
+				tu.username,
+				tu.name,
+				tr.role_name,
+				tu.tel_no,
+				tu.email,
+			    tbo.organization,
+			    string_agg(distinct tl.local, ',' order by tl.local asc) as locals,
+			    case when tbo.reg_date_time is null then ''
+				     when tbo.reg_date_time = '' then ''
+				     else substring(tbo.reg_date_time, 0, 5) || '. ' || substring(tbo.reg_date_time, 5, 2) || '. ' || substring(tbo.reg_date_time, 7, 2) || '.'
+				end  reg_date,
+				case when tbo.mod_date_time is null then ''
+				     when tbo.mod_date_time = '' then ''
+				     else substring(tbo.mod_date_time, 0, 5) || '. ' || substring(tbo.mod_date_time, 5, 2) || '. ' || substring(tbo.mod_date_time, 7, 2) || '.'
+				end  mod_date,
+				case when confirm_date_time is null then ''
+				     when confirm_date_time = '' then ''
+				     else substring(confirm_date_time, 0, 5) || '. ' || substring(confirm_date_time, 5, 2) || '. ' || substring(confirm_date_time, 7, 2) || '.'
+				end  confirm_date,
+				case when cancel_date_time is null then ''
+				     when cancel_date_time = '' then ''
+				     else '(' || substring(cancel_date_time, 0, 5) || '. ' || substring(cancel_date_time, 5, 2) || '. ' || substring(cancel_date_time, 7, 2) || '.)'
+				end  cancel_date,
+  				confirm_state,
+				COUNT(distinct tl.local) as local_cnt
+			from dbo.tb_users tu
+			left outer join dbo.tb_role tr
+			on tu.role  = tr.role
+			left outer join dbo.tb_organization tbo 
+			on tu.organization_id = tbo.organization_id 
+			left outer join dbo.tb_role_local trl 
+			on tu.id = trl.id
+			left outer join dbo.tb_local tl
+			on trl.local_id  = tl.local_id 
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and tbo.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and tl.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'name' and searchingContent != null and searchingContent != '' ">
+				and lower(tu.name) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'username' and searchingContent != null and searchingContent != '' ">
+				and lower(tu.username) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'role' and searchingContent != null and searchingContent != '' ">
+				and lower(tr.role_name) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			group by tu.username, tu.name, tr.role_name, tbo.organization, tbo.reg_date_time, tbo.mod_date_time, tu.confirm_date_time, tu.cancel_date_time, tu.confirm_state, tu.tel_no, tu.email
+		) a
+		order by ${sortColumn} ${sortType}
+		limit #{pagination.listSize} OFFSET #{pagination.startList}
+		
+	</select>
+	
+	<select id="selectUserMngListExcel" parameterType="com.gn.sungha.userMng.UserMngVO" resultType="com.gn.sungha.userMng.UserMngVO">
+	/* UserMngMapper.selectUserMngListExcel - 사용자관리 리스트 조회 엑셀 */
+		select
+			rownum,             /* 번호 */
+			username,           /* 사용자ID */
+			name,               /* 사용자명 */
+			role_name,          /* 사용자레벨 */
+			tel_no,             /* 연락처 */
+			email,              /* 이메일 */
+			organization,       /* 기관명 */
+			case when local_cnt > 1 then split_part(locals::varchar, ',', 1) || ' 외 ' || local_cnt
+			     else locals
+		    end as locals,      /* 권한지역 */
+			case when mod_date is null or mod_date = '' then reg_date else mod_date end as reg_date,            /* 등록일자 및 수정일자 */
+			confirm_date,       /* 승인일 */
+			confirm_state,      /* 승인상태 */
+			cancel_date,        /* 취소일 */
+		    split_part(locals::varchar, ',', 1) as local_first,  /* 첫번째 지역명 */
+   			local_cnt           /* 지역명 개수 */
+		from (
+			select
+				row_number() over (order by tu.username asc) as rownum,
+				tu.username,
+				tu.name,
+				tr.role_name,
+				tu.tel_no,
+				tu.email,
+			    tbo.organization,
+			    string_agg(distinct tl.local, ',' order by tl.local asc) as locals,
+			    case when tbo.reg_date_time is null then ''
+				     when tbo.reg_date_time = '' then ''
+				     else substring(tbo.reg_date_time, 0, 5) || '. ' || substring(tbo.reg_date_time, 5, 2) || '. ' || substring(tbo.reg_date_time, 7, 2) || '.'
+				end  reg_date,
+				case when tbo.mod_date_time is null then ''
+				     when tbo.mod_date_time = '' then ''
+				     else substring(tbo.mod_date_time, 0, 5) || '. ' || substring(tbo.mod_date_time, 5, 2) || '. ' || substring(tbo.mod_date_time, 7, 2) || '.'
+				end  mod_date,
+				case when confirm_date_time is null then ''
+				     when confirm_date_time = '' then ''
+				     else substring(confirm_date_time, 0, 5) || '. ' || substring(confirm_date_time, 5, 2) || '. ' || substring(confirm_date_time, 7, 2) || '.'
+				end  confirm_date,
+				case when cancel_date_time is null then ''
+				     when cancel_date_time = '' then ''
+				     else '(' || substring(cancel_date_time, 0, 5) || '. ' || substring(cancel_date_time, 5, 2) || '. ' || substring(cancel_date_time, 7, 2) || '.)'
+				end  cancel_date,
+  				case when confirm_state is null then '승인전'
+  				     when confirm_state = 'complete' then '승인완료'
+  				     when confirm_state = 'cancel' then '승인취소' end as confirm_state,
+				COUNT(distinct tl.local) as local_cnt
+			from dbo.tb_users tu
+			left outer join dbo.tb_role tr
+			on tu.role  = tr.role
+			left outer join dbo.tb_organization tbo 
+			on tu.organization_id = tbo.organization_id 
+			left outer join dbo.tb_role_local trl 
+			on tu.id = trl.id
+			left outer join dbo.tb_local tl
+			on trl.local_id  = tl.local_id 
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and tbo.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and tl.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'name' and searchingContent != null and searchingContent != '' ">
+				and lower(tu.name) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'username' and searchingContent != null and searchingContent != '' ">
+				and lower(tu.username) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'role' and searchingContent != null and searchingContent != '' ">
+				and lower(tr.role_name) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			group by tu.username, tu.name, tr.role_name, tbo.organization, tbo.reg_date_time, tbo.mod_date_time, tu.confirm_date_time, tu.cancel_date_time, tu.confirm_state, tu.tel_no, tu.email
+		) a
+		order by ${sortColumn} ${sortType}
+		
+	</select>
+
+	<select id="selectUserMngListTotalCnt" parameterType="String" resultType="int">
+	/* UserMngMapper.selectUserMngListTotalCnt - 사용자관리 리스트 개수 조회 */
+		select
+			COUNT(distinct username)
+		from (
+			select
+				row_number() over () as rownum,
+				tu.username
+			from dbo.tb_users tu
+			left outer join dbo.tb_role tr
+			on tu.role  = tr.role
+			left outer join dbo.tb_organization tbo 
+			on tu.organization_id = tbo.organization_id 
+			left outer join dbo.tb_local tl 
+			on tu.organization_id = tl.organization_id 
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and tbo.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and tl.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'name' and searchingContent != '' and searchingContent != null ">
+				and lower(tu.name) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'username' and searchingContent != '' and searchingContent != null">
+				and lower(tu.username) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'role' and searchingContent != '' and searchingContent != null ">
+				and lower(tu.role) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+		) a
+		
+	</select>
+	
+	<update id="updateUserMngConfirm" parameterType="String">
+	/* UserMngMapper.updateUserMngConfirm - 승인 변경 */
+		update dbo.tb_users
+		set
+			confirm_state = #{confirmStateMod}
+			<if test="confirmStateMod == 'complete' ">
+			, confirm_date_time = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+			</if>
+			<if test="confirmStateMod == 'cancel' ">
+			, cancel_date_time = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+			</if>
+		where username = #{userId}
+	</update>
+		
+	<select id="selectUserMngConfirmOrCancelDate" parameterType="String" resultType="com.gn.sungha.userMng.UserMngVO">
+	/* UserMngMapper.selectUserMngConfirmOrCancelDate - 승인 변경에 따른 승인일 가져오기 or 취소일 가져오기 */
+	select
+		case when confirm_date_time is null then ''
+		     when confirm_date_time = '' then ''
+		     else substring(confirm_date_time, 0, 5) || '. ' || substring(confirm_date_time, 5, 2) || '. ' || substring(confirm_date_time, 7, 2) || '.'
+		end  confirm_date,
+		case when cancel_date_time is null then ''
+		     when cancel_date_time = '' then ''
+		     else '('|| substring(cancel_date_time, 0, 5) || '. ' || substring(cancel_date_time, 5, 2) || '. ' || substring(cancel_date_time, 7, 2) || '.)'
+		end  cancel_date
+	from dbo.tb_users
+	where username = #{userId}
+	</select>	
+	
+	<select id="selectUserLevelList" resultType="com.gn.sungha.userMng.UserMngVO">
+	/* UserMngMapper.selectUserLevelList - 사용자 레벨 콤보박스 리스트 조회 */
+		select
+			role,
+			role_name
+		from dbo.tb_role
+	</select>
+	
+	<select id="selectUserMngDupCheck" parameterType="String" resultType="com.gn.sungha.organizationInfo.organizationInfoVO">
+	/* UserMngMapper.selectUserMngDupCheck - 사용자아이디 중복체크 */
+		select
+			username
+		from dbo.tb_users
+		where username = #{userId}
+	</select>
+	
+	<select id="selectRoleLocal" parameterType="String" resultType="com.gn.sungha.local.localVO">
+	/* UserMngMapper.selectRoleLocal - 권한지역 선택 팝업에 데이터 전송 */
+		select
+			local_id,
+			local
+		from dbo.tb_local
+		where organization_id = #{orgId}
+	</select>
+	
+	<select id="selectRoleLocalSearchList" parameterType="String" resultType="com.gn.sungha.local.localVO">
+	/* UserMngMapper.selectRoleLocalSearchList - 권한지역 선택 팝업 검색 */
+		select
+			local_id,
+			local
+		from dbo.tb_local
+		where organization_id = #{registOrgId}
+		<if test="searchingContent != null and searchingContent != '' ">
+		and local like '%' || #{searchingContent} || '%'
+		</if>
+	</select>
+	
+	<insert id="insertUserMngSave" parameterType="String">
+	/* UserMngMapper.insertUserMngSave - 사용자관리 등록 */
+		insert into dbo.tb_users
+		(
+			username,
+			name,
+			organization_id,
+			role,
+			tel_no,
+			email,
+			password
+		)
+		values
+		(
+			#{inputUserId},
+			#{inputUserNm},
+			#{registOrgId},
+			#{userLevelRegist},
+			#{telNo},
+			#{email},
+			#{inputUserPw}
+		)
+	</insert>
+	
+	<select id="selectUserMngId" parameterType="String" resultType="int">
+	/* UserMngMapper.selectUserMngId - 사용자 등록시 ID 조회 */
+		select
+			id
+		from dbo.tb_users
+		where username = #{inputUserId}
+	</select>
+	
+	<insert id="insertUserMngRoleLocal" parameterType="HashMap">
+	/* UserMngMapper.insertUserMngRoleLocal - 사용자관리 저장시 권한지역 저장 */
+		insert into dbo.tb_role_local
+		(
+			local_id,
+			id
+		)
+		values
+		(
+			#{localId},
+			#{id}
+		)
+	</insert>
+	
+	<select id="selectUserMngDetail" parameterType="String" resultType="com.gn.sungha.userMng.UserMngVO">
+	/* UserMngMapper.selectUserMngDetail - 사용자관리 상세조회 */
+		select
+			tu.username,
+			tr.role_name,
+			tu.name,
+			tu.tel_no,
+			to2.organization,
+			tu.email,
+			string_agg(distinct tl.local, ',' order by tl.local asc) as locals,
+			tr.role,
+			tu.organization_id,
+			string_agg(distinct tl.local_id, ',' order by tl.local_id asc) as local_ids
+		from dbo.tb_users tu
+		left outer join dbo.tb_role tr 
+		on tu.role  = tr.role
+		left outer join dbo.tb_organization to2
+		on tu.organization_id  = to2.organization_id
+		left outer join dbo.tb_role_local trl 
+		on tu.id = trl.id
+		left outer join dbo.tb_local tl
+		on trl.local_id  = tl.local_id 
+		where tu.username = #{userId}
+		group by tu.username, tr.role_name, tu.name, tu.tel_no, to2.organization, tu.email, tr.role, tu.organization_id
+	</select>
+	
+	<update id="updateUserMngMod" parameterType="String">
+	/* UserMngMapper.updateUserMngMod - 사용자관리 수정 */
+	update dbo.tb_users
+	set
+		role = #{userLevel},
+		name = #{userNm},
+		tel_no = #{telNo},
+		email = #{email},
+		organization_id = #{orgId}
+	where username = #{userId}
+	</update>
+	
+	<delete id="deleteUserMngRoleLocal" parameterType="int">
+	/* UserMngMapper.deleteUserMngRoleLocal - 사용자관리 수정시 권한지역 삭제 */
+	delete from dbo.tb_role_local
+	where id = #{id}
+	</delete>
+	
+	<select id="selectUserMngIdFor" parameterType="String">
+	/* UserMngMapper.selectUserMngIdFor - 사용자관리 삭제시 ID 조회 */
+		select
+			id
+		from dbo.tb_users
+		where username = #{userId}
+	</select>
+	
+	<delete id="deleteUserMngDel" parameterType="String">
+	/* UserMngMapper.deleteUserMngDel - 사용자관리 삭제 */
+	delete from dbo.tb_users
+	where username = #{userId}
+	</delete>
+	
+	<update id="updatePasswordChange" parameterType="String">
+	/* UserMngMapper.updatePasswordChange - 비밀번호 초기화 */
+	update dbo.tb_users
+	set
+		password = #{changedPassword}
+	where username = #{userId}
+	</update>
+	
+</mapper>	

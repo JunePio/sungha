@@ -1,0 +1,527 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.sensor.SensorMapper">	
+
+	<select id="selectSensorInfoList" parameterType="com.gn.sungha.sensor.SensorVO" resultType="com.gn.sungha.sensor.SensorVO">
+	/* sensorInfoMapper.selectSensorInfoList - 센서정보 리스트 조회 */
+		select
+			rownum,       /* 번호 */
+		    sensor_id,    /* 센서ID */
+		    sensor,       /* 센서명 */
+		    organization, /* 기관명 */
+			local,		  /* 지역명 */  
+		    batcaprema,   /* 배터리 잔량 */
+		    usim_id, /* 유심코드 */
+		    out_yn, /* 센서상태 */
+			case when mod_date is null or mod_date = '' then reg_date else mod_date end as reg_date,            /* 등록일자 및 수정일자 */
+			sensor_detail, /* 센서설명 */
+			irrigation_id,  /* 관수ID */
+			irrigation_name, /* 관수명 */ 
+			local_id,      /* 지역ID */
+		    organization_id /* 기관ID */
+		from (
+			select 
+				row_number() over (order by info.sensor_id asc) as rownum,
+				info.sensor_id,
+				tsc.sensor,
+				tl.local,
+				to2.organization,
+				case when ts.batcaprema is null then '0'
+				     else ts.batcaprema
+				end as batcaprema,
+				info.usim_id,
+				case when info.out_yn is null then ''
+					 when info.out_yn = '' then ''
+				     when info.out_yn = 'Y' then '반출'
+				     else '미반출'
+				end out_yn,
+				case when info.reg_date_time is null then ''
+				     when info.reg_date_time = '' then ''
+			       	 else substring(info.reg_date_time, 0, 5) || '. ' || substring(info.reg_date_time, 5, 2) || '. ' || substring(info.reg_date_time, 7, 2) || '.'
+			    end reg_date,
+			    case when info.mod_date_time is null then ''
+				     when info.mod_date_time = '' then ''
+			       	 else substring(info.mod_date_time, 0, 5) || '. ' || substring(info.mod_date_time, 5, 2) || '. ' || substring(info.mod_date_time, 7, 2) || '.'
+			    end mod_date,
+				info.sensor_detail,
+				tii.irrigation_id,
+				tii.irrigation_name,
+				tl.local_id,
+				to2.organization_id
+			from dbo.tb_sensor_info info
+			left outer join  dbo.tb_sensor ts
+			on ts.sensor_id = info.sensor_id
+			and (ts.sensor_id, ts.reg_date_time, ts.batcaprema) = (select sensor_id, reg_date_time, batcaprema from dbo.tb_sensor a where sensor_id = ts.sensor_id order by a.reg_date_time desc limit 1)
+			left outer join dbo.tb_sensor_control tsc 
+			on info.sensor_id = tsc.sensor_id
+			left outer join dbo.tb_local tl 
+			on tsc.local_id = tl.local_id 
+			left outer join dbo.tb_organization to2 
+			on tsc.organization_id = to2.organization_id
+			left outer join dbo.tb_sensor_irrigation tsi
+			on info.sensor_id = tsi.sensor_id
+			left outer join dbo.tb_irrigation_info tii
+			on tsi.irrigation_id = tii.irrigation_id
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and to2.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and tl.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorId' and searchingContent != null and searchingContent != '' ">
+				and lower(info.sensor_id) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorNm' and searchingContent != null and searchingContent != '' ">
+				and lower(tsc.sensor) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			group by info.sensor_id, tsc.sensor, tl.local, to2.organization, ts.batcaprema, info.usim_id, info.out_yn, info.reg_date_time, info.mod_date_time, info.sensor_detail,
+					tl.local_id, to2.organization_id, tii.irrigation_id, tii.irrigation_name
+		) a
+		order by ${sortColumn} ${sortType}
+		limit #{pagination.listSize} OFFSET #{pagination.startList}
+		
+	</select>
+	
+	<select id="selectSensorInfoListExcel" parameterType="String" resultType="com.gn.sungha.sensor.SensorVO">
+	/* sensorInfoMapper.selectSensorInfoListExcel - 센서정보 리스트 조회 엑셀 */
+		select
+			rownum,       /* 번호 */
+		    sensor_id,    /* 센서ID */
+		    sensor,       /* 센서명 */
+		    organization, /* 기관명 */
+			local,		  /* 지역명 */  
+		    batcaprema,   /* 배터리 잔량 */
+		    usim_id, /* 유심코드 */
+		    out_yn, /* 센서상태 */
+			case when mod_date is null or mod_date = '' then reg_date else mod_date end as reg_date,            /* 등록일자 및 수정일자 */
+			sensor_detail, /* 센서설명 */
+			irrigation_id,  /* 관수ID */
+			irrigation_name, /* 관수명 */ 
+			local_id,      /* 지역ID */
+		    organization_id /* 기관ID */
+		from (
+			select 
+				row_number() over (order by info.sensor_id asc) as rownum,
+				info.sensor_id,
+				tsc.sensor,
+				tl.local,
+				to2.organization,
+				case when ts.batcaprema is null then '0'
+				     else ts.batcaprema
+				end as batcaprema,
+				info.usim_id,
+				case when info.out_yn is null then ''
+					 when info.out_yn = '' then ''
+				     when info.out_yn = 'Y' then '반출'
+				     else '미반출'
+				end out_yn,
+				case when info.reg_date_time is null then ''
+				     when info.reg_date_time = '' then ''
+			       	 else substring(info.reg_date_time, 0, 5) || '. ' || substring(info.reg_date_time, 5, 2) || '. ' || substring(info.reg_date_time, 7, 2) || '.'
+			    end reg_date,
+			    case when info.mod_date_time is null then ''
+				     when info.mod_date_time = '' then ''
+			       	 else substring(info.mod_date_time, 0, 5) || '. ' || substring(info.mod_date_time, 5, 2) || '. ' || substring(info.mod_date_time, 7, 2) || '.'
+			    end mod_date,
+				info.sensor_detail,
+				tii.irrigation_id,
+				tii.irrigation_name,
+				tl.local_id,
+				to2.organization_id
+			from dbo.tb_sensor_info info
+			left outer join  dbo.tb_sensor ts
+			on ts.sensor_id = info.sensor_id
+			and (ts.sensor_id, ts.reg_date_time, ts.batcaprema) = (select sensor_id, reg_date_time, batcaprema from dbo.tb_sensor a where sensor_id = ts.sensor_id order by a.reg_date_time desc limit 1)
+			left outer join dbo.tb_sensor_control tsc 
+			on info.sensor_id = tsc.sensor_id
+			left outer join dbo.tb_local tl 
+			on tsc.local_id = tl.local_id 
+			left outer join dbo.tb_organization to2 
+			on tsc.organization_id = to2.organization_id
+			left outer join dbo.tb_sensor_irrigation tsi
+			on info.sensor_id = tsi.sensor_id
+			left outer join dbo.tb_irrigation_info tii
+			on tsi.irrigation_id = tii.irrigation_id
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and to2.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and tl.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorId' and searchingContent != null and searchingContent != '' ">
+				and lower(info.irrigation_id) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorNm' and searchingContent != null and searchingContent != '' ">
+				and lower(info.irrigation_name) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			group by info.sensor_id, tsc.sensor, tl.local, to2.organization, ts.batcaprema, info.usim_id, info.out_yn, info.reg_date_time, info.mod_date_time, info.sensor_detail,
+					tl.local_id, to2.organization_id, tii.irrigation_id, tii.irrigation_name
+		) a
+		order by ${sortColumn} ${sortType}
+		
+	</select>
+	
+	<select id="selectSensorInfoListTotalCnt" parameterType="String" resultType="int">
+	/* sensorInfoMapper.selectSensorInfoListTotalCnt - 센서정보 개수 조회 */
+		select
+			count(*)
+		from (
+			select 
+				row_number() over (order by ts.sensor_id asc) as rownum,
+				ts.sensor_id
+			from dbo.tb_sensor_info info
+			left outer join dbo.tb_sensor ts
+			on ts.sensor_id = info.sensor_id
+			and (ts.sensor_id, ts.reg_date_time, ts.batcaprema) = (select sensor_id, reg_date_time, batcaprema from dbo.tb_sensor a where sensor_id = ts.sensor_id order by a.reg_date_time desc limit 1)
+			left outer join dbo.tb_sensor_control tsc 
+			on ts.sensor_id = tsc.sensor_id
+			left outer join dbo.tb_local tl 
+			on tsc.local_id = tl.local_id 
+			left outer join dbo.tb_organization to2 
+			on tsc.organization_id = to2.organization_id 
+			left outer join dbo.tb_sensor_irrigation tsi
+			on info.sensor_id = tsi.sensor_id
+			left outer join dbo.tb_irrigation_info tii
+			on tsi.irrigation_id = tii.irrigation_id			
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and tsc.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and tl.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorId' and searchingContent != null and searchingContent != '' ">
+				and lower(ts.sensor_id) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'sensorNm' and searchingContent != null and searchingContent != '' ">
+				and lower(tsc.sensor) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			group by ts.sensor_id
+		) a
+	</select>
+	
+	<insert id="insertSensorInfo" parameterType="String">
+	/* localMapper.insertSensorInfo - 센서 저장 */
+		insert into dbo.tb_sensor_info
+		(
+			sensor_id,      /* 센서ID */
+			usim_id,        /* 유심코드 */
+			reg_date_time,   /* 등록일시 */
+			out_yn,           /* 반출여부 */
+			sensor_detail     /* 센서상세위치 */
+		)
+		values
+		(
+			#{sensorId},
+			#{usimId},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			#{outYn},
+			#{sensorDetail}
+		)
+	</insert>
+	
+	<insert id="insertSensorControl" parameterType="String">
+	/* localMapper.insertSensorControl - 센서 설정 저장 */
+		insert into dbo.tb_sensor_control
+		(
+			sensor_id,      /* 센서ID */
+			sensor,         /* 센서명 */
+			organization_id,/* 기관ID */
+			local_id,       /* 지역ID */
+			reg_date_time,    /* 등록일시 */
+			temp_value_min,   /* 온도 설정값 최저 */
+			temp_value_max,   /* 온도 설정값 최고 */
+			humi_value_min,   /* 습도 설정값 최저 */
+			humi_value_max,   /* 습도 설정값 최고 */
+			conduc_value_min, /* 토양EC 설정값 최저 */
+			conduc_value_max, /* 토양EC 설정값 최고 */
+			ph_value_min,     /* 수소이온농도지수 설정값 최저 */
+			ph_value_max,     /* 수소이온농도지수 설정값 최고 */
+			nitro_value_min,  /* 질소 설정값 최저 */
+			nitro_value_max,  /* 질소 설정값 최고 */
+			phos_value_min,   /* 인 설정값 최저 */
+			phos_value_max,   /* 인 설정값 최고 */
+			pota_value_min,   /* 칼륨 설정값 최저 */
+			pota_value_max,   /* 칼륨 설정값 최고 */
+			batcaprema_value_min,  /* 배터리 설정값 최저 */
+			batcaprema_value_max   /* 배터리 설정값 최고 */
+		)
+		values
+		(
+			#{sensorId},
+			#{sensor},
+			#{organizationId},
+			#{localId},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			'-40',
+			'80',
+			'0',
+			'100',
+			'0',
+			'20',
+			'0',
+			'14',
+			'0',
+			'2000',
+			'0',
+			'2000',
+			'0',
+			'10',
+			'0',
+			'100'
+		)
+	</insert>
+	
+	<select id="selectSensorDupCheck" parameterType="String" resultType="com.gn.sungha.sensor.SensorVO">
+	/* sensorMapper.selectSensorDupCheck - 센서아이디 중복체크 */
+		select
+			sensor_id
+		from dbo.tb_sensor_info
+		where sensor_id = #{sensorId}
+	</select>
+	
+	<select id="selectSensorControlDupCheck" parameterType="String" resultType="com.gn.sungha.sensor.SensorVO">
+	/* sensorMapper.selectSensorControlDupCheck - 센서설정아이디 중복체크 */
+		select
+			sensor_id
+		from dbo.tb_sensor_control
+		where sensor_id = #{sensorId}
+	</select>
+	
+	<select id="selectSensorInfoDetail" parameterType="com.gn.sungha.sensor.SensorVO" resultType="com.gn.sungha.sensor.SensorVO">
+		/* sensorMapper.selectSensorInfoDetail - 센서정보 상세조회 */
+		select
+			tsi.sensor_id,     /* 센서ID */
+			tsc.sensor,       /* 센서명 */
+			tsi.usim_id,       /* 유심코드 */
+			to2.organization, /* 기관명 */
+			tl.local,         /* 지역명 */
+			tsi.sensor_detail,/* 센서 위치 설명 */
+			tsc.organization_id,  /* 기관ID */
+			tsc.local_id,         /* 지역ID */
+			tsi.out_yn,             /* 반출여부 */
+			ts.batcaprema,           /* 배터리 잔량 */
+			tsi.reg_date_time,       /* 기본 테이블의 등록일시 */
+			ts.reg_date_time as reg_date,        /* 센서 테이블의 등록일시 */
+			tii.irrigation_id,
+			tii.irrigation_name
+		from dbo.tb_sensor_info tsi
+		left outer join  dbo.tb_sensor ts
+		on ts.sensor_id = tsi.sensor_id
+		left outer join dbo.tb_sensor_control tsc 
+		on tsi.sensor_id = tsc.sensor_id
+		left outer join dbo.tb_local tl 
+		on tsc.local_id = tl.local_id 
+		left outer join dbo.tb_organization to2 
+		on tsc.organization_id = to2.organization_id 
+		left outer join dbo.tb_sensor_irrigation tsir
+		on tsi.sensor_id = tsir.sensor_id
+		left outer join dbo.tb_irrigation_info tii
+		on tsir.irrigation_id = tii.irrigation_id
+		where tsi.sensor_id = #{sensorId}
+		order by ts.reg_date_time desc
+		limit 1
+	</select>
+
+	<update id="updateSensorMod" parameterType="String">
+	/* sensorMapper.updateSensorMod - 센서 수정 */
+	update dbo.tb_sensor_info
+	set
+		usim_id = #{usimId},
+		out_yn = #{outYn},
+		sensor_detail = #{sensorDetail},
+		mod_date_time = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+	where sensor_id = #{sensorId}
+	</update>
+	
+	<update id="updateSensorControlMod" parameterType="String">
+	/* sensorMapper.updateSensorControlMod - 센서 설정 수정 */
+	update dbo.tb_sensor_control
+	set
+		sensor = #{sensor},
+		organization_id = #{orgId},
+		local_id = #{localId}		
+	where sensor_id = #{sensorId}
+	</update>
+	
+	<delete id="deleteSensor" parameterType="String">
+	/* sensorInfoMapper.deleteSensor - 센서 삭제 */
+	delete from dbo.tb_sensor_info
+	where sensor_id = #{sensorId}
+	</delete>
+	
+	<delete id="deleteSensorControl" parameterType="String">
+	/* sensorInfoMapper.deleteSensorControl - 센서 설정 삭제 */
+	delete from dbo.tb_sensor_control
+	where sensor_id = #{sensorId}
+	</delete>
+	
+	<insert id="insertSensorReplyInfo" parameterType="String">
+	/* sensorInfoMapper.insertSensorReplyInfo - 센서 댓글 저장 */
+		insert into dbo.tb_sensor_reply
+		(
+			writer_id,      /* 작성자ID */
+			title,          /* 제목 */
+			sensor_detail,  /* 센서위치정보 */
+			reg_date_time,  /* 등록일시 */
+			sensor_id       /* 센서ID */
+		)
+		values
+		(
+			#{writerId},
+			#{title},
+			#{sensorDetail},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			#{sensorId}
+		)
+	</insert>
+	
+	<select id="getSensorReplyId" parameterType="String" resultType="int">
+	select
+		MAX(reply_id)
+	from dbo.tb_sensor_reply
+	where sensor_id = #{sensorId}
+	</select>
+	
+	<insert id="insertReplyFileSave" parameterType="com.gn.sungha.sensor.SensorVO">
+	/* sensorInfoMapper.insertReplyFileSave - 센서 댓글 파일 저장 */
+		insert into dbo.tb_sensor_reply_file
+		(
+			reply_id,       /* 댓글ID */
+			uuid_name,      /* UUID */
+			ori_file_name,  /* 원본파일이름 */
+			file_size       /* 파일사이즈 */
+		)
+		values
+		(
+			#{replyId},
+			#{uuidName},
+			#{oriFileName},
+			#{fileSize}
+		)
+	</insert>
+	
+	<select id="selectSensorReplyList" parameterType="String" resultType="com.gn.sungha.sensor.SensorVO">
+	/* SensorMapper.selectSensorReplyList - 센서 댓글 목록 조회 */
+	select
+		writer_id,     /* 작성자ID */
+		name,          /* 작성자명 */
+		title,         /* 제목 */
+		sensor_detail, /* 센서설정정보 */
+		case when tsr.reg_date_time is null then ''
+		     when tsr.reg_date_time = '' then ''
+	       	 else substring(tsr.reg_date_time, 0, 5) || '. ' || substring(tsr.reg_date_time, 5, 2) || '. ' || substring(tsr.reg_date_time, 7, 2) || '.' || ' ' 
+	       	 	  || substring(tsr.reg_date_time, 9, 2) || ':' || substring(tsr.reg_date_time, 11, 2) || ':' || substring(tsr.reg_date_time, 13, 2)
+	    end reg_date_time,
+	    case when tsr.mod_date_time is null then ''
+			 when tsr.mod_date_time = '' then ''
+		     else substring(tsr.mod_date_time, 0, 5) || '. ' || substring(tsr.mod_date_time, 5, 2) || '. ' || substring(tsr.mod_date_time, 7, 2) || '.' || ' ' 
+		          || substring(tsr.mod_date_time, 9, 2) || ':' || substring(tsr.mod_date_time, 11, 2) || ':' || substring(tsr.mod_date_time, 13, 2)
+		end mod_date_time,
+		uuid_name,     /* UUID */
+		ori_file_name, /* 원본파일명 */
+		file_size,     /* 파일사이즈 */
+		tsr.reply_id       /* 댓글ID */
+	from dbo.tb_sensor_reply tsr
+	left outer join dbo.tb_sensor_reply_file tsrf
+	on tsr.reply_id = tsrf.reply_id
+	join dbo.tb_users tu
+	on tsr.writer_id = tu.username
+	where tsr.sensor_id = #{sensorId}
+	order by tsr.reg_date_time desc
+	</select> 
+	
+	<select id="getUuidName" parameterType="Int" resultType="String">
+	/* SensorMapper.getUuidName - UUID 조회 */
+		select
+			uuid_name
+		from dbo.tb_sensor_reply_file
+		where reply_id = #{replyId}
+	</select>
+	
+	<delete id="deleteSensorReply" parameterType="Int">
+	/* SensorMapper.deleteSensorReply - 센서 댓글 삭제 */
+	delete from dbo.tb_sensor_reply
+	where reply_id = #{replyId}
+	</delete>
+	
+	<delete id="deleteSensorReplyFile" parameterType="Int">
+	/* SensorMapper.deleteSensorReplyFile - 센서 댓글 파일 삭제 */
+	delete from dbo.tb_sensor_reply_file
+	where reply_id = #{replyId}
+	</delete>
+	
+	<update id="updateSensorReplyMod" parameterType="com.gn.sungha.sensor.SensorVO">
+	/* sensorMapper.updateSensorReplyMod - 센서 댓글 수정 */
+	update dbo.tb_sensor_reply
+	set
+		title = #{title},
+		sensor_detail = #{sensorDetail},
+		mod_date_time = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+	where reply_id = #{replyId}
+	</update>
+	
+	<select id="selectReplyFileList" parameterType="Int" resultType="com.gn.sungha.sensor.SensorVO">
+	/* SensorMapper.selectReplyFileList - 센서 댓글 파일 조회 */
+	select
+		uuid_name,
+		ori_file_name,
+		file_size
+	from dbo.tb_sensor_reply_file
+	where reply_id = #{replyId}
+	</select>
+	
+	<update id="updateSensorReplyFileMod" parameterType="com.gn.sungha.sensor.SensorVO">
+	/* sensorMapper.updateSensorReplyFileMod - 센서 댓글 파일 수정 */
+	update dbo.tb_sensor_reply_file
+	set
+		uuid_name = #{uuidName},
+		ori_file_name = #{oriFileName},
+		file_size = #{fileSize}
+	where reply_id = #{replyId}
+	</update>
+	
+	<select id="selectIrrigationComboList" parameterType="String" resultType="com.gn.sungha.irrigation.IrrigationVO">
+	/* sensorMapper.selectIrrigationComboList - 관수 콤보박스 리스트 조회 */
+	select
+		irrigation_id,
+		irrigation_name
+	from dbo.tb_irrigation_info
+	where local_id = #{localId}
+	order by irrigation_name
+	</select>
+	
+	
+	<insert id="insertSensorIrrigaton" parameterType="com.gn.sungha.sensor.SensorVO">
+	/* sensorMapper.insertSensorIrrigaton - 센서 관수 매핑 */
+		insert into dbo.tb_sensor_irrigation
+		(
+			sensor_id,       /* 센서ID */
+			irrigation_id    /* 관수ID */
+		)
+		values
+		(
+			#{sensorId},
+			#{irrigationId}
+		)
+	</insert>
+	
+	<update id="updateSensorIrrigation" parameterType="String">
+	/* sensorMapper.updateSensorIrrigation - 센서 관수 매핑 수정 */
+	update dbo.tb_sensor_irrigation
+	set
+		irrigation_id = #{irrigationId} /* 관수ID */
+	where sensor_id = #{sensorId}
+	</update>
+	
+	<select id="selectIrrigationList" parameterType="String" resultType="com.gn.sungha.irrigation.IrrigationVO">
+	/* sensorMapper.selectIrrigationList - 센서에 매핑된 관수 리스트 조회 */
+	select
+		irrigation_id
+	from dbo.tb_sensor_irrigation
+	where sensor_id = #{sensorId}
+	</select>
+	
+</mapper>

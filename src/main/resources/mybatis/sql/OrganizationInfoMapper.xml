@@ -1,0 +1,667 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.organizationInfo.organizationInfoMapper">	
+	
+	<select id="selectOrgInfoList" parameterType="com.gn.sungha.organizationInfo.organizationInfoVO" resultType="com.gn.sungha.organizationInfo.organizationInfoVO">
+		/* organizationInfoMapper.selectOrgInfoList - 기관정보 리스트 조회 */
+			select
+				rownum,             /* 번호 */
+			    organization_id,    /* 기관ID */
+			    organization, /* 기관명 */
+				case when local_cnt > 1 then split_part(locals::varchar, ',', 1) || ' 외 ' || local_cnt
+				     else locals
+			    end as locals, /* 지역명 */		    
+			    user_cnt,           /* 사용자 수 */
+			    sensor_use_cnt || '/' || sensor_cnt as sensor_cnt,         /* 센서 수 */
+			    device_cnt,  /* 관수 수 */
+			    person_in_charge,   /* 담당자 */
+			    tel_no, /* 연락처 */
+			    email,   /* 이메일 */
+			    case when mod_date is null or mod_date = '' then reg_date else mod_date end as reg_date,            /* 등록일자 및 수정일자 */
+			    split_part(locals::varchar, ',', 1) as local,  /* 첫번째 지역명 */
+				local_cnt /* 지역명 개수 */
+			from (
+				select
+					row_number() over (order by a.organization_id asc) as rownum,
+				    a.organization_id,
+				    a.organization,
+				    c.locals,
+				    a.user_cnt,
+				    b.sensor_use_cnt,
+				    d.device_cnt,
+				    a.person_in_charge,
+				    a.tel_no,
+			        a.email,
+				    case when a.reg_date_time is null then ''
+					     when a.reg_date_time = '' then ''
+					     else substring(a.reg_date_time, 0, 5) || '. ' || substring(a.reg_date_time, 5, 2) || '. ' || substring(a.reg_date_time, 7, 2) || '.'
+					end  reg_date,
+					case when a.mod_date_time is null then ''
+					     when a.mod_date_time = '' then ''
+					     else substring(a.mod_date_time, 0, 5) || '. ' || substring(a.mod_date_time, 5, 2) || '. ' || substring(a.mod_date_time, 7, 2) || '.'
+					end  mod_date,
+					b.sensor_cnt,				
+					c.local_cnt
+				from (
+					select
+						to2.organization_id,
+						to2.organization,
+						to2.reg_date_time,
+						to2.mod_date_time,
+						to2.person_in_charge,
+						to2.tel_no,
+				        to2.email,
+						COUNT(distinct tu.username) as user_cnt
+					from  dbo.tb_organization to2
+					left outer join dbo.tb_users tu
+					on to2.organization_id  = tu.organization_id
+					left outer join dbo.tb_role_local trl
+					on tu.id = trl.id
+					left outer join dbo.tb_local tl
+					on trl.local_id = tl.local_id
+					group by to2.organization_id, to2.reg_date_time, to2.mod_date_time, to2.person_in_charge
+				) a
+				join 
+				(
+					select
+						to2.organization_id,
+						COUNT(case when tsc.sensor_id is not null and info.out_yn = 'Y' then 1 else null end) as sensor_use_cnt,
+						COUNT(case when tsc.sensor_id is not null then 1 else null end) as sensor_cnt
+					from dbo.tb_organization to2 
+					left outer join dbo.tb_sensor_control tsc 
+					on to2.organization_id = tsc.organization_id 
+					left outer join dbo.tb_sensor_info info 
+			        on info.sensor_id = tsc.sensor_id
+					group by to2.organization_id
+				) b
+				on a.organization_id = b.organization_id
+				join
+			 	(
+			 		select 
+			 			to2.organization_id,
+			 			string_agg(distinct tl.local, ',' order by local asc) as locals,
+						COUNT(distinct tl."local") - 1 as local_cnt
+			 		from dbo.tb_organization to2 
+			 		left outer join dbo.tb_local tl
+					on to2.organization_id = tl.organization_id
+					where 1=1
+					<if test="localId != null and localId != '' and localId != 'total' ">
+					and tl.local_id = #{localId}
+					</if>
+					group by to2.organization_id 
+			 	) c
+				on b.organization_id = c.organization_id
+				join
+				(
+					select 
+						to2.organization_id,
+						COUNT(distinct ti.irrigation_id) as device_cnt
+					from dbo.tb_organization to2 
+					left outer join dbo.tb_irrigation_info ti
+					on to2.organization_id = ti.organization_id
+					left outer join dbo.tb_irrigation_control tic
+					on ti.irrigation_id = tic.irrigation_id 
+					group by to2.organization_id 
+				) d
+				on b.organization_id = d.organization_id
+				where 1=1
+				<if test="organizationId != null and organizationId != '' and organizationId != 'total' ">
+					and a.organization_id = #{organizationId}
+				</if>
+				<if test="personInCharge != null and personInCharge != '' ">
+					and lower(a.person_in_charge) like '%' || lower(#{personInCharge}) || '%'
+				</if>
+				group by a.organization_id, a.organization, a.reg_date_time, a.mod_date_time, a.person_in_charge, a.tel_no, a.email, user_cnt, sensor_use_cnt, sensor_cnt, d.device_cnt, locals, local_cnt
+			) a
+			order by ${sortColumn} ${sortType}
+			limit #{pagination.listSize} OFFSET #{pagination.startList}
+		
+	</select>
+	
+	<select id="selectOrgInfoListExcel" parameterType="com.gn.sungha.organizationInfo.organizationInfoVO" resultType="com.gn.sungha.organizationInfo.organizationInfoVO">
+		/* organizationInfoMapper.selectOrgInfoListExcel - 기관정보 리스트 조회 엑셀 */
+			select
+				rownum,             /* 번호 */
+			    organization_id,    /* 기관ID */
+			    organization, /* 기관명 */
+				case when local_cnt > 1 then split_part(locals::varchar, ',', 1) || ' 외 ' || local_cnt
+				     else locals
+			    end as locals, /* 지역명 */		    
+			    user_cnt,           /* 사용자 수 */
+			    sensor_use_cnt || '/' || sensor_cnt as sensor_cnt,         /* 센서 수 */
+			    device_cnt,  /* 관수 수 */
+			    person_in_charge,   /* 담당자 */
+			    tel_no, /* 연락처 */
+			    email,   /* 이메일 */
+			    case when mod_date is null or mod_date = '' then reg_date else mod_date end as reg_date,            /* 등록일자 및 수정일자 */
+			    split_part(locals::varchar, ',', 1) as local,  /* 첫번째 지역명 */
+				local_cnt /* 지역명 개수 */
+			from (
+				select
+					row_number() over (order by a.organization_id asc) as rownum,
+				    a.organization_id,
+				    a.organization,
+				    c.locals,
+				    a.user_cnt,
+				    b.sensor_use_cnt,
+				    d.device_cnt,
+				    a.person_in_charge,
+				    a.tel_no,
+			        a.email,
+				    case when a.reg_date_time is null then ''
+					     when a.reg_date_time = '' then ''
+					     else substring(a.reg_date_time, 0, 5) || '. ' || substring(a.reg_date_time, 5, 2) || '. ' || substring(a.reg_date_time, 7, 2) || '.'
+					end  reg_date,
+					case when a.mod_date_time is null then ''
+					     when a.mod_date_time = '' then ''
+					     else substring(a.mod_date_time, 0, 5) || '. ' || substring(a.mod_date_time, 5, 2) || '. ' || substring(a.mod_date_time, 7, 2) || '.'
+					end  mod_date,
+					b.sensor_cnt,				
+					c.local_cnt
+				from (
+					select
+						to2.organization_id,
+						to2.organization,
+						to2.reg_date_time,
+						to2.mod_date_time,
+						to2.person_in_charge,
+						to2.tel_no,
+				        to2.email,
+						COUNT(distinct tu.username) as user_cnt
+					from  dbo.tb_organization to2
+					left outer join dbo.tb_users tu
+					on to2.organization_id  = tu.organization_id
+					left outer join dbo.tb_role_local trl
+					on tu.id = trl.id
+					left outer join dbo.tb_local tl
+					on trl.local_id = tl.local_id
+					group by to2.organization_id, to2.reg_date_time, to2.mod_date_time, to2.person_in_charge
+				) a
+				join 
+				(
+					select
+						to2.organization_id,
+						COUNT(case when tsc.sensor_id is not null and info.out_yn = 'Y' then 1 else null end) as sensor_use_cnt,
+						COUNT(case when tsc.sensor_id is not null then 1 else null end) as sensor_cnt
+					from dbo.tb_organization to2 
+					left outer join dbo.tb_sensor_control tsc 
+					on to2.organization_id = tsc.organization_id 
+					left outer join dbo.tb_sensor_info info 
+			        on info.sensor_id = tsc.sensor_id
+					group by to2.organization_id
+				) b
+				on a.organization_id = b.organization_id
+				join
+			 	(
+			 		select 
+			 			to2.organization_id,
+			 			string_agg(distinct tl.local, ',' order by local asc) as locals,
+						COUNT(distinct tl."local") - 1 as local_cnt
+			 		from dbo.tb_organization to2 
+			 		left outer join dbo.tb_local tl
+					on to2.organization_id = tl.organization_id
+					where 1=1
+					<if test="localId != null and localId != '' and localId != 'total' ">
+					and tl.local_id = #{localId}
+					</if>
+					group by to2.organization_id 
+			 	) c
+				on b.organization_id = c.organization_id
+				join
+				(
+					select 
+						to2.organization_id,
+						COUNT(distinct ti.irrigation_id) as device_cnt
+					from dbo.tb_organization to2 
+					left outer join dbo.tb_irrigation_info ti
+					on to2.organization_id = ti.organization_id
+					left outer join dbo.tb_irrigation_control tic
+					on ti.irrigation_id = tic.irrigation_id 
+					group by to2.organization_id 
+				) d
+				on b.organization_id = d.organization_id
+				where 1=1
+				<if test="organizationId != null and organizationId != '' and organizationId != 'total' ">
+					and a.organization_id = #{organizationId}
+				</if>
+				<if test="personInCharge != null and personInCharge != '' ">
+					and lower(a.person_in_charge) like '%' || lower(#{personInCharge}) || '%'
+				</if>
+				group by a.organization_id, a.organization, a.reg_date_time, a.mod_date_time, a.person_in_charge, a.tel_no, a.email, user_cnt, sensor_use_cnt, sensor_cnt, d.device_cnt, locals, local_cnt
+			) a
+			order by ${sortColumn} ${sortType}
+		
+	</select>
+	
+	<select id="selectOrgInfoListTotalCnt" parameterType="String" resultType="int">
+		/* organizationInfoMapper.selectOrgInfoList - 기관정보 리스트 조회 */
+			select
+				count(*)
+			from (
+				select
+					row_number() over (order by a.organization_id asc) as rownum,
+				    a.organization_id,
+				    a.organization,
+				    case when a.reg_date_time is null then ''
+					     when a.reg_date_time = '' then ''
+					     else substring(a.reg_date_time, 0, 5) || '. ' || substring(a.reg_date_time, 5, 2) || '. ' || substring(a.reg_date_time, 7, 2) || '.'
+					end  reg_date,
+					case when a.mod_date_time is null then ''
+					     when a.mod_date_time = '' then ''
+					     else '(' || substring(a.mod_date_time, 0, 5) || '. ' || substring(a.mod_date_time, 5, 2) || '. ' || substring(a.mod_date_time, 7, 2) || '.)'
+					end  mod_date,
+					a.person_in_charge,
+					a.user_cnt,
+					b.sensor_use_cnt,
+					b.sensor_cnt,
+					c.locals,
+					c.local_cnt
+				from (
+					select
+						to2.organization_id,
+						to2.organization,
+						to2.reg_date_time,
+						to2.mod_date_time,
+						to2.person_in_charge,
+						to2.tel_no,
+				        to2.email,
+						COUNT(distinct tu.username) as user_cnt
+					from  dbo.tb_organization to2
+					left outer join dbo.tb_users tu
+					on to2.organization_id  = tu.organization_id
+					left outer join dbo.tb_role_local trl
+					on tu.id = trl.id
+					left outer join dbo.tb_local tl
+					on trl.local_id = tl.local_id
+					group by to2.organization_id, to2.reg_date_time, to2.mod_date_time, to2.person_in_charge
+				) a
+				join 
+				(
+					select
+						to2.organization_id,
+						COUNT(case when tsc.sensor_id is not null and info.out_yn = 'Y' then 1 else null end) as sensor_use_cnt,
+						COUNT(case when tsc.sensor_id is not null then 1 else null end) as sensor_cnt
+					from dbo.tb_organization to2 
+					left outer join dbo.tb_sensor_control tsc 
+					on to2.organization_id = tsc.organization_id 
+					left outer join dbo.tb_sensor_info info 
+			        on info.sensor_id = tsc.sensor_id
+					group by to2.organization_id
+				) b
+				on a.organization_id = b.organization_id
+				join
+			 	(
+			 		select 
+			 			to2.organization_id,
+			 			string_agg(distinct tl.local, ',' order by local asc) as locals,
+						COUNT(distinct tl."local") - 1 as local_cnt
+			 		from dbo.tb_organization to2 
+			 		left outer join dbo.tb_local tl
+					on to2.organization_id = tl.organization_id
+					where 1=1
+					<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+					and tl.local_id = #{searchingLocalId}
+					</if>
+					group by to2.organization_id 
+			 	) c
+				on b.organization_id = c.organization_id
+				where 1=1
+				<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+					and a.organization_id = #{searchingOrgId}
+				</if>				
+				<if test="personInCharge != null and personInCharge != '' ">
+					and lower(a.person_in_charge) like '%' || lower(#{personInCharge}) || '%'
+				</if>
+				group by a.organization_id, a.organization, a.reg_date_time, a.mod_date_time, a.person_in_charge, user_cnt, sensor_use_cnt, sensor_cnt, locals, local_cnt
+			) a
+	</select>
+	
+	<select id="selectOrgDupCheck" parameterType="String" resultType="com.gn.sungha.organizationInfo.organizationInfoVO">
+	/* organizationInfoMapper.selectOrgDupCheck - 기관아이디 중복체크 */
+		select
+			organization_id
+		from dbo.tb_organization
+		where organization_id = #{orgId}
+	</select>
+	
+	<select id="selectLocalDupCheck" parameterType="String" resultType="com.gn.sungha.local.localVO">
+	/* organizationInfoMapper.selectLocalDupCheck - 지역아이디 중복체크 */
+		select
+			local_id
+		from dbo.tb_local
+		where local_id = #{orgId}
+	</select>
+	
+	<select id="selectUserMngDupCheck" parameterType="String" resultType="com.gn.sungha.userMng.UserMngVO">
+	/* organizationInfoMapper.selectUserMngDupCheck - 사용자아이디 중복체크 */
+		select
+			username
+		from dbo.tb_users
+		where username = #{orgId}
+	</select>
+	
+	<insert id="insertOrgInfoSave" parameterType="String">
+	/* organizationInfoMapper.insertOrgInfoSave - 기관정보 저장 */
+		insert into dbo.tb_organization
+		(
+			organization_id,  /* 기관ID */
+			organization,     /* 기관명 */
+			reg_date_time,    /* 등록일시 */
+			person_in_charge, /* 담당자 */
+			tel_no, /* 연락처 */
+			email   /* 이메일 */
+		)
+		values
+		(
+			#{orgId},
+			#{orgNm},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			#{personInCharge},
+			#{telNo},
+			#{email}
+		)
+	</insert>
+	
+	<insert id="insertUserMngSave" parameterType="String">
+	/* UserMngMapper.insertUserMngSave - 사용자관리 등록 */
+		insert into dbo.tb_users
+		(
+			username,
+			name,
+			organization_id,
+			role,
+			tel_no,
+			email,
+			confirm_state,
+			confirm_date_time
+		)
+		values
+		(
+			#{inputUserId},
+			#{inputUserNm},
+			#{registOrgId},
+			#{userLevelRegist},
+			#{telNo},
+			#{email},
+			#{confirmState},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+		)
+	</insert>
+		
+	<select id="selectOrgInfoDetail" parameterType="String" resultType="com.gn.sungha.organizationInfo.organizationInfoVO">
+		/* organizationInfoMapper.selectOrgInfoDetail - 기관정보 상세조회 */
+		select
+		    a.organization_id,
+		    a.organization,
+		    case when a.reg_date_time is null then ''
+			     when a.reg_date_time = '' then ''
+			     else substring(a.reg_date_time, 0, 5) || '. ' || substring(a.reg_date_time, 5, 2) || '. ' || substring(a.reg_date_time, 7, 2) || '.'
+			end  reg_date,
+			case when a.mod_date_time is null then ''
+			     when a.mod_date_time = '' then ''
+			     else '(' || substring(a.mod_date_time, 0, 5) || '. ' || substring(a.mod_date_time, 5, 2) || '. ' || substring(a.mod_date_time, 7, 2) || '.)'
+			end  mod_date,
+			a.person_in_charge,
+			a.tel_no,
+			a.email,
+			a.user_cnt,
+			b.sensor_use_cnt || '/' || b.sensor_cnt as sensor_cnt,
+			d.device_cnt,
+			c.locals,
+			c.local_cnt
+		from (
+			select
+				to2.organization_id,
+				to2.organization,
+				to2.reg_date_time,
+				to2.mod_date_time,
+				to2.person_in_charge,
+				to2.tel_no,  
+		        to2.email,
+				COUNT(distinct tu.username) as user_cnt
+			from  dbo.tb_organization to2
+			left outer join dbo.tb_users tu
+			on to2.organization_id  = tu.organization_id
+			left outer join dbo.tb_role_local trl
+			on tu.id = trl.id
+			left outer join dbo.tb_local tl
+			on trl.local_id = tl.local_id
+			group by to2.organization_id, to2.reg_date_time, to2.mod_date_time, to2.person_in_charge
+		) a
+		join 
+		(
+			select
+				to2.organization_id,
+				COUNT(case when tsc.sensor_id is not null and info.out_yn = 'Y' then 1 else null end) as sensor_use_cnt,
+				COUNT(case when tsc.sensor_id is not null then 1 else null end) as sensor_cnt
+			from dbo.tb_organization to2 
+			left outer join dbo.tb_sensor_control tsc 
+			on to2.organization_id = tsc.organization_id 
+			left outer join dbo.tb_sensor_info info 
+	        on info.sensor_id = tsc.sensor_id
+			group by to2.organization_id
+		) b
+		on a.organization_id = b.organization_id
+		join
+		(
+			select 
+				to2.organization_id,
+				string_agg(distinct tl.local, ',' order by local asc) as locals,
+				COUNT(distinct tl."local") - 1 as local_cnt
+			from dbo.tb_organization to2 
+			left outer join dbo.tb_local tl
+			on to2.organization_id = tl.organization_id
+			group by to2.organization_id 
+		) c
+		on b.organization_id = c.organization_id
+		join
+		(
+			select 
+				to2.organization_id,
+				COUNT(distinct ti.irrigation_id) as device_cnt
+			from dbo.tb_organization to2 
+			left outer join dbo.tb_irrigation_info ti
+			on to2.organization_id = ti.organization_id
+			left outer join dbo.tb_irrigation_control tic
+			on ti.irrigation_id = tic.irrigation_id 
+			group by to2.organization_id 
+		) d
+		on b.organization_id = d.organization_id
+		where 1=1
+		and a.organization_id = #{organizationId}
+		group by a.organization_id, a.organization, a.reg_date_time, a.mod_date_time, a.person_in_charge, a.tel_no, a.email, user_cnt, sensor_use_cnt, sensor_cnt, d.device_cnt, c.locals, c.local_cnt
+	</select>
+	
+	<select id="selectOrgInfoModDetail" parameterType="String" resultType="com.gn.sungha.organizationInfo.organizationInfoVO">
+		/* organizationInfoMapper.selectOrgInfoModDetail - 기관정보 상세조회 */
+		select
+		    a.organization_id,
+		    a.organization,
+		    case when a.reg_date_time is null then ''
+			     when a.reg_date_time = '' then ''
+			     else substring(a.reg_date_time, 0, 5) || '. ' || substring(a.reg_date_time, 5, 2) || '. ' || substring(a.reg_date_time, 7, 2) || '.'
+			end  reg_date,
+			case when a.mod_date_time is null then ''
+			     when a.mod_date_time = '' then ''
+			     else '(' || substring(a.mod_date_time, 0, 5) || '. ' || substring(a.mod_date_time, 5, 2) || '. ' || substring(a.mod_date_time, 7, 2) || '.)'
+			end  mod_date,
+			a.person_in_charge,
+			a.tel_no,
+			a.email,
+			a.user_cnt,
+			b.sensor_use_cnt || '/' || b.sensor_cnt as sensor_cnt,
+			d.device_cnt,
+			c.locals,
+			c.local_cnt
+		from (
+			select
+				to2.organization_id,
+				to2.organization,
+				to2.reg_date_time,
+				to2.mod_date_time,
+				to2.person_in_charge,
+				to2.tel_no,
+		        to2.email,
+				COUNT(distinct tu.username) as user_cnt
+			from  dbo.tb_organization to2
+			left outer join dbo.tb_users tu
+			on to2.organization_id  = tu.organization_id
+			left outer join dbo.tb_role_local trl
+			on tu.id = trl.id
+			left outer join dbo.tb_local tl
+			on trl.local_id = tl.local_id
+			group by to2.organization_id, to2.reg_date_time, to2.mod_date_time, to2.person_in_charge
+		) a
+		join 
+		(
+			select
+				to2.organization_id,
+				COUNT(case when tsc.sensor_id is not null and info.out_yn = 'Y' then 1 else null end) as sensor_use_cnt,
+				COUNT(case when tsc.sensor_id is not null then 1 else null end) as sensor_cnt
+			from dbo.tb_organization to2 
+			left outer join dbo.tb_sensor_control tsc 
+			on to2.organization_id = tsc.organization_id 
+			left outer join dbo.tb_sensor_info info 
+		    on info.sensor_id = tsc.sensor_id
+			group by to2.organization_id
+		) b
+		on a.organization_id = b.organization_id
+		join
+		(
+			select 
+				to2.organization_id,
+				string_agg(distinct tl.local, ',' order by local asc) as locals,
+				COUNT(distinct tl."local") - 1 as local_cnt
+			from dbo.tb_organization to2 
+			left outer join dbo.tb_local tl
+			on to2.organization_id = tl.organization_id
+			group by to2.organization_id 
+		) c
+		on b.organization_id = c.organization_id
+		join
+		(
+			select 
+				to2.organization_id,
+				COUNT(distinct ti.irrigation_id) as device_cnt
+			from dbo.tb_organization to2 
+			left outer join dbo.tb_irrigation_info ti
+			on to2.organization_id = ti.organization_id
+			left outer join dbo.tb_irrigation_control tic
+			on ti.irrigation_id = tic.irrigation_id 
+			group by to2.organization_id 
+		) d
+		on b.organization_id = d.organization_id
+		where 1=1
+		and a.organization_id = #{organizationId}
+		group by a.organization_id, a.organization, a.reg_date_time, a.mod_date_time, a.person_in_charge, a.tel_no, a.email, user_cnt, sensor_use_cnt, sensor_cnt, d.device_cnt, c.locals, c.local_cnt
+	</select>
+	
+	<update id="updateOrgInfoMod" parameterType="String">
+	/* organizationInfoMapper.updateOrgInfoMod - 기관정보 수정 */
+		update dbo.tb_organization
+		set
+			organization = #{orgNm},
+			person_in_charge = #{personInCharge},
+			tel_no = #{telNo},
+			email = #{email},
+			mod_date_time = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+		where organization_id = #{orgId}
+	</update>
+	
+	<select id="selectEtcInfoCount" parameterType="String" resultType="com.gn.sungha.organizationInfo.organizationInfoVO">
+	/* organizationInfoMapper.selectEtcInfoCount - 기관정보 삭제해도 되는지 사용자, 센서, 관수 체크 */
+		select
+		    a.organization_id,
+		    a.organization,
+		    case when a.reg_date_time is null then ''
+			     when a.reg_date_time = '' then ''
+			     else substring(a.reg_date_time, 0, 5) || '. ' || substring(a.reg_date_time, 5, 2) || '. ' || substring(a.reg_date_time, 7, 2) || '.'
+			end  reg_date,
+			case when a.mod_date_time is null then ''
+			     when a.mod_date_time = '' then ''
+			     else '(' || substring(a.mod_date_time, 0, 5) || '. ' || substring(a.mod_date_time, 5, 2) || '. ' || substring(a.mod_date_time, 7, 2) || '.)'
+			end  mod_date,
+			a.person_in_charge,
+			a.tel_no,
+			a.email,
+			a.user_cnt,
+			b.sensor_use_cnt,
+			b.sensor_cnt,
+			d.device_cnt,
+			c.locals,
+			c.local_cnt
+		from (
+			select
+				to2.organization_id,
+				to2.organization,
+				to2.reg_date_time,
+				to2.mod_date_time,
+				to2.person_in_charge,
+				to2.tel_no,
+		        to2.email,
+				COUNT(distinct tu.username) as user_cnt
+			from  dbo.tb_organization to2
+			left outer join dbo.tb_users tu
+			on to2.organization_id  = tu.organization_id
+			left outer join dbo.tb_role_local trl
+			on tu.id = trl.id
+			left outer join dbo.tb_local tl
+			on trl.local_id = tl.local_id
+			group by to2.organization_id, to2.reg_date_time, to2.mod_date_time, to2.person_in_charge
+		) a
+		join 
+		(
+			select
+				to2.organization_id,
+				COUNT(case when tsc.sensor_id is not null and info.out_yn = 'Y' then 1 else null end) as sensor_use_cnt,
+				COUNT(case when tsc.sensor_id is not null then 1 else null end) as sensor_cnt
+			from dbo.tb_organization to2 
+			left outer join dbo.tb_sensor_control tsc 
+			on to2.organization_id = tsc.organization_id 
+			left outer join dbo.tb_sensor_info info 
+	        on info.sensor_id = tsc.sensor_id
+			group by to2.organization_id
+		) b
+		on a.organization_id = b.organization_id
+		join
+		(
+			select 
+				to2.organization_id,
+				string_agg(distinct tl.local, ',' order by local asc) as locals,
+				COUNT(distinct tl."local") - 1 as local_cnt
+			from dbo.tb_organization to2 
+			left outer join dbo.tb_local tl
+			on to2.organization_id = tl.organization_id
+			group by to2.organization_id 
+		) c
+		on b.organization_id = c.organization_id
+		join
+		(
+			select 
+				to2.organization_id,
+				COUNT(distinct ti.irrigation_id) as device_cnt
+			from dbo.tb_organization to2 
+			left outer join dbo.tb_irrigation_info ti
+			on to2.organization_id = ti.organization_id
+			left outer join dbo.tb_irrigation_control tic
+			on ti.irrigation_id = tic.irrigation_id 
+			group by to2.organization_id 
+		) d
+		on b.organization_id = d.organization_id
+		where 1=1
+		and a.organization_id = #{organizationId}
+		group by a.organization_id, a.organization, a.reg_date_time, a.mod_date_time, a.person_in_charge, a.tel_no, a.email, user_cnt, sensor_use_cnt, sensor_cnt, d.device_cnt, c.locals, c.local_cnt
+	</select>
+	
+	<delete id="deleteOrgInfoDel" parameterType="String">
+	/* organizationInfoMapper.selectOrgInfoDel - 기관정보 삭제 */
+	delete from dbo.tb_organization
+	where organization_id = #{organizationId}
+	</delete>
+	
+	<delete id="deleteLocalDel" parameterType="String">
+	/* organizationInfoMapper.deleteLocalDel - 기관정보 삭제시 지역도 같이 삭제 */
+	delete from dbo.tb_local
+	where organization_id = #{organizationId}
+	</delete>
+</mapper>

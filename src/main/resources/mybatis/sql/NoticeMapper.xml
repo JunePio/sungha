@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.notice.NoticeMapper">
+
+	<select id="selectNoticeList" parameterType="String" resultType="com.gn.sungha.notice.NoticeVO">
+	/* BoardMapper.selectNoticeList - 공지사항정보 리스트 조회 */
+		select 
+		    rownum,
+			board_id,
+			writer_id,
+			title,
+			content,
+			reg_date_time,
+			mod_date_time,
+			notice_gubun
+		from (
+			select 
+				row_number() over (order by notice.board_id asc) as rownum,
+				notice.board_id,
+				notice.writer_id,
+				notice.title,
+				notice.content,
+				case when notice.reg_date_time is null then ''
+		     	when notice.reg_date_time = '' then ''
+	       	 	else substring(notice.reg_date_time, 0, 5) || '. ' || substring(notice.reg_date_time, 5, 2) || '. ' || substring(notice.reg_date_time, 7, 2) || '.' || ' ' 
+	       	 	   || substring(notice.reg_date_time, 9, 2) || ':' || substring(notice.reg_date_time, 11, 2) || ':' || substring(notice.reg_date_time, 13, 2)
+			    end reg_date_time,
+			    case when notice.mod_date_time is null then ''
+					 when notice.mod_date_time = '' then ''
+				     else substring(notice.mod_date_time, 0, 5) || '. ' || substring(notice.mod_date_time, 5, 2) || '. ' || substring(notice.mod_date_time, 7, 2) || '.' || ' ' 
+				       || substring(notice.mod_date_time, 9, 2) || ':' || substring(notice.mod_date_time, 11, 2) || ':' || substring(notice.mod_date_time, 13, 2)
+				end mod_date_time,
+				case when notice.notice_gubun = '1' then '공지'
+		     		 when notice.notice_gubun = '2' then '보도자료'
+				end notice_gubun
+			from dbo.tb_notice notice
+			where 1=1
+			<if test="searchingType != null and searchingType != '' and searchingType == 'title' and searchingContent != null and searchingContent != '' ">		
+				and lower(notice.title) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'content' and searchingContent != null and searchingContent != '' ">			
+				and lower(notice.content) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+		)a
+		order by ${sortColumn} ${sortType}
+		limit #{pagination.listSize} OFFSET #{pagination.startList}
+	</select>
+	
+	<select id="selectNoticeListTotalCnt" parameterType="String" resultType="int">
+	/* NoticeMapper.selectNoticeListTotalCnt - 공지사항정보 개수 조회 */
+		select
+			count(*)
+		from (
+			select 
+				row_number() over (order by notice.board_id asc) as rownum,
+				notice.board_id
+			from dbo.tb_notice notice
+			where 1=1
+			<if test="searchingType != null and searchingType != '' and searchingType == 'title' and searchingContent != null and searchingContent != '' ">		
+				and lower(notice.title) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'content' and searchingContent != null and searchingContent != '' ">			
+				and lower(notice.content) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+		group by notice.board_id
+	)a	
+	</select>
+	
+	<insert id="insertNoticeSave" parameterType="String">
+	/* NoticeMapper.insertNoticeSave - 공지사항 저장 */
+		insert into dbo.tb_notice
+		(
+			writer_id,	/* 작성자ID */
+			title,		/* 제목 */
+			content,	/* 내용 */
+			reg_date_time,	/* 등록일시 */
+			mod_date_time,	/* 수정일시 */
+			notice_gubun	/* 문의종류 */
+		)
+		values
+		(
+			#{writerId},
+			#{title},
+			#{content},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			#{noticeGubun}
+		)
+	</insert>
+	
+	<select id="selectNoticeDetail" parameterType="int" resultType="com.gn.sungha.notice.NoticeVO">
+	/* NoticeMapper.selectNoticeDetail - 공지사항 상세 조회 */
+		select 
+				notice.board_id,
+				notice.writer_id,
+				notice.title,
+				notice.content,
+				notice.reg_date_time,
+				notice.mod_date_time,
+				notice.notice_gubun
+-- 				case when notice.notice_gubun = '1' then '공지'
+-- 		     		 when notice.notice_gubun = '2' then '보도자료'
+-- 				end notice_gubun
+			from dbo.tb_notice notice
+			where notice.board_id = #{boardId}
+		order by notice.reg_date_time asc
+	</select>
+	
+	<update id="updateNoticeMod" parameterType="com.gn.sungha.notice.NoticeVO">
+	/* NoticeMapper.updateNoticeMod - 공지사항 수정 */
+		update dbo.tb_notice
+		set
+			title = #{title},
+			content = #{content},
+			notice_gubun = #{noticeGubun}		
+		where board_id = #{boardId}
+	</update>
+	
+	<delete id="deleteNotice" parameterType="int">
+	/* BoardMapper.deleteNotice - 공지사항 삭제 */
+		delete from dbo.tb_notice
+		where board_id = #{boardId}
+	</delete>
+	
+	
+</mapper>

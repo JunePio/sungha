@@ -1,0 +1,454 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.irrigation.IrrigationMapper">
+
+	<select id="selectIrrigationList" parameterType="com.gn.sungha.irrigation.IrrigationVO" resultType="com.gn.sungha.irrigation.IrrigationVO">
+	/* IrrigationMapper.selectIrrigationList - 관수 정보 리스트 조회 */
+		select
+			rownum,       /* 번호 */
+		    irrigation_id,    /* 관수ID */
+		    irrigation_name,       /* 관수명 */
+		    organization, /* 기관명 */
+			local,		  /* 지역명 */  
+			state,
+			irrigation_detail, /* 관수설명 */
+			local_id,      /* 지역ID */
+		    organization_id /* 기관ID */
+		from (
+			select 
+				row_number() over (order by info.irrigation_id asc) as rownum,
+				info.irrigation_id,
+				info.irrigation_name,
+				tl.local,
+				to2.organization,
+			    tsc.state,
+				info.irrigation_detail,
+				tl.local_id,
+				to2.organization_id
+			from dbo.tb_irrigation_info info
+			left outer join  dbo.tb_irrigation ts
+			on ts.irrigation_id = info.irrigation_id
+			and (ts.irrigation_id, ts.reg_date_time) = (select irrigation_id, reg_date_time from dbo.tb_irrigation a where irrigation_id = ts.irrigation_id order by a.reg_date_time desc limit 1)
+			left outer join dbo.tb_irrigation_control tsc 
+			on info.irrigation_id = tsc.irrigation_id
+			left outer join dbo.tb_local tl 
+			on info.local_id = tl.local_id 
+			left outer join dbo.tb_organization to2 
+			on info.organization_id = to2.organization_id
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and info.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and info.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'irrigation' and searchingContent != null and searchingContent != '' ">
+				and lower(info.irrigation_name) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'irrigationId' and searchingContent != null and searchingContent != '' ">
+				and lower(info.irrigation_id) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+		) b
+		order by ${sortColumn} ${sortType}
+		limit #{pagination.listSize} OFFSET #{pagination.startList}
+		
+	</select>
+	
+	<select id="selectIrrigationListExcel" parameterType="String" resultType="com.gn.sungha.irrigation.IrrigationVO">
+	/* IrrigationMapper.selectIrrigationListExcel - 관수 정보 리스트 조회 엑셀 */
+		select
+			rownum,       /* 번호 */
+		    irrigation_id,    /* 관수ID */
+		    irrigation_name,       /* 관수명 */
+		    organization, /* 기관명 */
+			local,		  /* 지역명 */  
+			state,
+			irrigation_detail, /* 관수설명 */
+			local_id,      /* 지역ID */
+		    organization_id /* 기관ID */
+		from (
+			select 
+				row_number() over (order by info.irrigation_id asc) as rownum,
+				info.irrigation_id,
+				info.irrigation_name,
+				tl.local,
+				to2.organization,
+			    tsc.state,
+				info.irrigation_detail,
+				tl.local_id,
+				to2.organization_id
+			from dbo.tb_irrigation_info info
+			left outer join  dbo.tb_irrigation ts
+			on ts.irrigation_id = info.irrigation_id
+			and (ts.irrigation_id, ts.reg_date_time) = (select irrigation_id, reg_date_time from dbo.tb_irrigation a where irrigation_id = ts.irrigation_id order by a.reg_date_time desc limit 1)
+			left outer join dbo.tb_irrigation_control tsc 
+			on info.irrigation_id = tsc.irrigation_id
+			left outer join dbo.tb_local tl 
+			on info.local_id = tl.local_id 
+			left outer join dbo.tb_organization to2 
+			on info.organization_id = to2.organization_id
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and info.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and info.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'irrigation' and searchingContent != null and searchingContent != '' ">
+				and lower(info.irrigation_name) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'irrigationId' and searchingContent != null and searchingContent != '' ">
+				and lower(info.irrigation_id) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+		) b
+		order by ${sortColumn} ${sortType}
+		
+	</select>
+
+	<select id="selectIrrigationListTotalCnt" parameterType="String" resultType="int">
+	/* IrrigationMapper.selectIrrigationListTotalCnt - 관수 정보 리스트 개수 조회 */
+		select
+			count(irrigation_id)
+		from (
+			select 
+				row_number() over (order by info.irrigation_id asc) as rownum,
+				info.irrigation_id
+			from dbo.tb_irrigation_info info
+			left outer join  dbo.tb_irrigation ts
+			on ts.irrigation_id = info.irrigation_id
+			and (ts.irrigation_id, ts.reg_date_time) = (select irrigation_id, reg_date_time from dbo.tb_irrigation a where irrigation_id = ts.irrigation_id order by a.reg_date_time desc limit 1)
+			left outer join dbo.tb_irrigation_control tsc 
+			on info.irrigation_id = tsc.irrigation_id
+			left outer join dbo.tb_local tl 
+			on info.local_id = tl.local_id 
+			left outer join dbo.tb_organization to2 
+			on info.organization_id = to2.organization_id
+			where 1=1
+			<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+				and info.organization_id = #{searchingOrgId}
+			</if>
+			<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+				and info.local_id = #{searchingLocalId}
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'irrigation' and searchingContent != null and searchingContent != '' ">
+				and lower(info.irrigation_name) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'irrigationId' and searchingContent != null and searchingContent != '' ">
+				and lower(info.irrigation_id) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+		) b
+	</select>
+	
+	<select id="selectIrrigationDetail" parameterType="String" resultType="com.gn.sungha.irrigation.IrrigationVO">
+	/* IrrigationMapper.selectIrrigationDetail - 관수 정보 상세조회 */
+		select
+			tsi.irrigation_id,     /* 관수ID */
+			tsi.irrigation_name,       /* 관수명 */
+			to2.organization, /* 기관명 */
+			tl.local,         /* 지역명 */
+			tsi.irrigation_detail,/* 관수 위치 설명 */
+			tsc.state, /* 관수 상태 */
+			tsi.organization_id,  /* 기관ID */
+			tsi.local_id         /* 지역ID */
+		from dbo.tb_irrigation_info tsi
+		left outer join  dbo.tb_irrigation ts
+		on ts.irrigation_id = tsi.irrigation_id
+		left outer join dbo.tb_irrigation_control tsc 
+		on tsi.irrigation_id = tsc.irrigation_id
+		left outer join dbo.tb_local tl 
+		on tsi.local_id = tl.local_id 
+		left outer join dbo.tb_organization to2 
+		on tsi.organization_id = to2.organization_id
+		where tsi.irrigation_id = #{irrigationId}
+		order by ts.reg_date_time desc
+		limit 1
+	</select>
+	
+	<!-- 관수정보 아이디 중복체크 -->
+	<select id="selectDupCheck" parameterType="String" resultType="com.gn.sungha.irrigation.IrrigationVO">
+		select
+			irrigation_id
+		from dbo.tb_irrigation
+		where irrigation_id = #{irrigationId}
+	</select>
+
+	<insert id="insertIrrigation" parameterType="String">
+	/* IrrigationMapper.insertIrrigation - 관수 정보 저장 */
+		insert into dbo.tb_irrigation_info
+		(
+			irrigation_id,      /* 관수ID */
+			irrigation_name,         /* 관수명 */
+			organization_id, 	/* 기관ID */
+			local_id,        	/* 지역ID */
+			irrigation_detail,  /* 관수 설명 */
+			reg_date_time
+		)
+		values
+		(
+			#{irrigationId},
+			#{irrigation},
+			#{organizationId},
+			#{localId},
+			#{irrigationDetail},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+		)
+	</insert>
+	
+	<insert id="insertIrrigationControl" parameterType="String">
+	/* IrrigationMapper.insertIrrigationControl - 관수 설정 저장 */
+		insert into dbo.tb_irrigation_control
+		(
+			irrigation_id,      /* 관수ID */
+			control_date,       /* 관수펌프제어 일자 */
+			control_time,       /* 관수펌프제어 시간 */
+			value_min,          /* 관수펌프제어 최소값 */
+			value_max,          /* 관수펌프제어 최대값 */
+			user_id,            /* 사용자ID */
+			auto_control,        /* 관수펌프제어 기능사용여부 */
+			state               /* 관수펌프 사용여부 */
+			
+		)
+		values
+		(
+			#{irrigationId},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD'),
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'HH24MISS'),
+			'5',
+			'20',
+			#{userId},
+			#{irrigationAutoControl},
+			#{irrigationState}
+		)
+	</insert>
+
+	<update id="updateIrrigationStateChange" parameterType="String">
+	/* localMapper.updateIrrigationStateChange - 관수 상태 수정 */
+		update dbo.tb_irrigation_control
+		set
+			state = #{state}
+		where (control_date, control_time) in (
+			select
+				control_date,
+				control_time
+			from dbo.tb_device_control
+			where irrigation_id = #{irrigationId}
+			order by control_date desc, control_time desc
+			limit 1
+		)
+	</update>
+	
+	<select id="selectIrrigationDupCheck" parameterType="String" resultType="com.gn.sungha.irrigation.IrrigationVO">
+	/* irrigationMapper.selectIrrigationDupCheck - 관수아이디 중복체크 */
+		select
+			irrigation_id
+		from dbo.tb_irrigation_info
+		where irrigation_id = #{irrigationId}
+	</select>
+	
+	<select id="selectIrrigationControlDupCheck" parameterType="String" resultType="com.gn.sungha.irrigation.IrrigationVO">
+	/* irrigationMapper.selectIrrigationControlDupCheck - 관수설정아이디 중복체크 */
+		select
+			irrigation_id
+		from dbo.tb_irrigation_control
+		where irrigation_id = #{irrigationId}
+	</select>
+	
+	<select id="selectIrrigationReplyList" parameterType="String" resultType="com.gn.sungha.irrigation.IrrigationVO">
+	/* IrrigationMapper.selectIrrigationReplyList - 관수 댓글 목록 조회 */
+	select
+		writer_id,     /* 작성자ID */
+		name,          /* 작성자명 */
+		title,         /* 제목 */
+		irrigation_detail, /* 관수설정정보 */
+		case when tsr.reg_date_time is null then ''
+		     when tsr.reg_date_time = '' then ''
+	       	 else substring(tsr.reg_date_time, 0, 5) || '. ' || substring(tsr.reg_date_time, 5, 2) || '. ' || substring(tsr.reg_date_time, 7, 2) || '.' || ' ' 
+	       	 	  || substring(tsr.reg_date_time, 9, 2) || ':' || substring(tsr.reg_date_time, 11, 2) || ':' || substring(tsr.reg_date_time, 13, 2)
+	    end reg_date_time,
+	    case when tsr.mod_date_time is null then ''
+			 when tsr.mod_date_time = '' then ''
+		     else substring(tsr.mod_date_time, 0, 5) || '. ' || substring(tsr.mod_date_time, 5, 2) || '. ' || substring(tsr.mod_date_time, 7, 2) || '.' || ' ' 
+		          || substring(tsr.mod_date_time, 9, 2) || ':' || substring(tsr.mod_date_time, 11, 2) || ':' || substring(tsr.mod_date_time, 13, 2)
+		end mod_date_time,
+		uuid_name,     /* UUID */
+		ori_file_name, /* 원본파일명 */
+		file_size,     /* 파일사이즈 */
+		tsr.reply_id       /* 댓글ID */
+	from dbo.tb_irrigation_reply tsr
+	left outer join dbo.tb_irrigation_reply_file tsrf
+	on tsr.reply_id = tsrf.reply_id
+	join dbo.tb_users tu
+	on tsr.writer_id = tu.username
+	where tsr.irrigation_id = #{irrigationId}
+	order by tsr.reg_date_time desc
+	</select> 
+	
+	<update id="updateIrrigationMod" parameterType="String">
+	/* irrigationMapper.updateIrrigationMod - 관수 수정 */
+	update dbo.tb_irrigation_info
+	set
+		irrigation_id = #{irrigationId},
+		irrigation_name = #{irrigation},
+		organization_id = #{organizationId},
+		local_id = #{localId},
+		irrigation_detail = #{irrigationDetail},
+		mod_date_time = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+	where irrigation_id = #{irrigationId}
+	</update>
+	
+	<update id="updateIrrigationControlMod" parameterType="String">
+	/* irrigationMapper.updateIrrigationControlMod - 관수 설정 수정 */
+	update dbo.tb_irrigation_control
+	set
+		irrigation_id = #{irrigationId},
+		user_id = #{userId},
+		state = #{irrigationState},
+		auto_control = #{irrigationAutoControl}		
+	where irrigation_id = #{irrigationId}
+	</update>
+	
+	<delete id="deleteIrrigation" parameterType="String">
+	/* irrigationInfoMapper.deleteIrrigation - 관수 삭제 */
+	delete from dbo.tb_irrigation_info
+	where irrigation_id = #{irrigationId}
+	</delete>
+	
+	<delete id="deleteIrrigationControl" parameterType="String">
+	/* irrigationInfoMapper.deleteIrrigationControl - 관수 설정 삭제 */
+	delete from dbo.tb_irrigation_control
+	where irrigation_id = #{irrigationId}
+	</delete>
+	
+	<select id="getUuidName" parameterType="Int" resultType="String">
+	/* IrrigationMapper.getUuidName - UUID 조회 */
+		select
+			uuid_name
+		from dbo.tb_irrigation_reply_file
+		where reply_id = #{replyId}
+	</select>
+	
+	<insert id="insertIrrigationReplyInfo" parameterType="String">
+	/* irrigationInfoMapper.insertIrrigationReplyInfo - 관수 댓글 저장 */
+		insert into dbo.tb_irrigation_reply
+		(
+			writer_id,      /* 작성자ID */
+			title,          /* 제목 */
+			irrigation_detail,  /* 관수위치정보 */
+			reg_date_time,  /* 등록일시 */
+			irrigation_id       /* 관수ID */
+		)
+		values
+		(
+			#{writerId},
+			#{title},
+			#{irrigationDetail},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			#{irrigationId}
+		)
+	</insert>
+	
+	<select id="getIrrigationReplyId" parameterType="String" resultType="int">
+	select
+		MAX(reply_id)
+	from dbo.tb_irrigation_reply
+	where irrigation_id = #{irrigationId}
+	</select>
+	
+	<insert id="insertReplyFileSave" parameterType="com.gn.sungha.irrigation.IrrigationVO">
+	/* irrigationInfoMapper.insertReplyFileSave - 관수 댓글 파일 저장 */
+		insert into dbo.tb_irrigation_reply_file
+		(
+			reply_id,       /* 댓글ID */
+			uuid_name,      /* UUID */
+			ori_file_name,  /* 원본파일이름 */
+			file_size       /* 파일사이즈 */
+		)
+		values
+		(
+			#{replyId},
+			#{uuidName},
+			#{oriFileName},
+			#{fileSize}
+		)
+	</insert>
+	
+	<delete id="deleteIrrigationReply" parameterType="Int">
+	/* IrrigationMapper.deleteIrrigationReply - 관수 댓글 삭제 */
+	delete from dbo.tb_irrigation_reply
+	where reply_id = #{replyId}
+	</delete>
+	
+	<delete id="deleteIrrigationReplyFile" parameterType="Int">
+	/* IrrigationMapper.deleteIrrigationReplyFile - 관수 댓글 파일 삭제 */
+	delete from dbo.tb_irrigation_reply_file
+	where reply_id = #{replyId}
+	</delete>
+	
+	<update id="updateIrrigationReplyMod" parameterType="com.gn.sungha.irrigation.IrrigationVO">
+	/* irrigationMapper.updateIrrigationReplyMod - 관수 댓글 수정 */
+	update dbo.tb_irrigation_reply
+	set
+		title = #{title},
+		irrigation_detail = #{irrigationDetail},
+		mod_date_time = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+	where reply_id = #{replyId}
+	</update>
+	
+	<select id="selectReplyFileList" parameterType="Int" resultType="com.gn.sungha.irrigation.IrrigationVO">
+	/* IrrigationMapper.selectReplyFileList - 관수 댓글 파일 조회 */
+	select
+		uuid_name,
+		ori_file_name,
+		file_size
+	from dbo.tb_irrigation_reply_file
+	where reply_id = #{replyId}
+	</select>
+	
+	<update id="updateIrrigationReplyFileMod" parameterType="com.gn.sungha.irrigation.IrrigationVO">
+	/* irrigationMapper.updateIrrigationReplyFileMod - 관수 댓글 파일 수정 */
+	update dbo.tb_irrigation_reply_file
+	set
+		uuid_name = #{uuidName},
+		ori_file_name = #{oriFileName},
+		file_size = #{fileSize}
+	where reply_id = #{replyId}
+	</update>
+	
+	<select id="selectIrrigationHistoryList" parameterType="String" resultType="com.gn.sungha.irrigation.IrrigationVO">
+	/* IrrigationMapper.selectIrrigationHistoryList - 관수 수정이력 조회 */
+	select
+		user_id,
+		tu.name,
+		stream_time,
+		irrigation_state,
+		substring(date_time, 0, 5) || '. ' || substring(date_time, 5, 2) || '. ' || substring(date_time, 7, 2) || '. ' || substring(date_time, 9, 2) || ':' || substring(date_time, 11, 2) || ':' || substring(date_time, 13, 2) as date_time, 
+		irrigation_detail
+	from dbo.tb_irrigation_history tih
+	join dbo.tb_users tu
+	on tih.user_id = tu.username
+	where irrigation_id = #{irrigationId}
+	</select>
+	
+	<insert id="insertIrrigationHistoryChange" parameterType="com.gn.sungha.irrigation.IrrigationVO">
+	/* irrigationInfoMapper.insertIrrigationHistoryChange - 관수 수정 이력 저장 */
+		insert into dbo.tb_irrigation_history
+		(
+			irrigation_id,      /* 작성자ID */
+			stream_time,        /* 제목 */
+			irrigation_state,   /* 관수 상태 */
+			date_time,          /* 일시 */
+			irrigation_detail,  /* 관수위치정보 */
+			user_id             /* 사용자ID */
+		)
+		values
+		(
+			#{irrigationId},
+			#{streamTime},
+			#{irrigationState},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			#{irrigationDetail},
+			#{userId}
+		)
+	</insert>
+	
+</mapper>

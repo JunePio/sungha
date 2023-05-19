@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.common.UserMapper">
+    <!-- 로그인 -->
+    <select id="getUserAccount" resultType="com.gn.sungha.common.UserVo">
+        SELECT * FROM dbo.TB_USERS
+        WHERE username= #{username}
+    </select>
+
+    <!-- 회원가입 -->
+    <insert id="saveUser" parameterType="com.gn.sungha.common.UserVo" >
+        INSERT INTO dbo.TB_USERS
+            (username, password, name, role, reg_date_time)
+        VALUES(#{username}, #{password}, #{name}, #{role}, #{regDateTime})
+    </insert>
+
+	<select id="selectIdDupCheck" parameterType="String" resultType="com.gn.sungha.common.UserVo">
+	/* UserMapper.selectIdDupCheck - 회원가입 아이디 중복체크 */
+		select
+			username
+		from dbo.tb_users
+		where username = #{signUpId}
+	</select>
+
+	<select id="selectUserNmAndEmailCheck" parameterType="String" resultType="com.gn.sungha.common.UserVo">
+	/* UserMapper.selectUserNmAndEmailCheck - 아이디 찾기에서 사용자명과 이메일이 일치하는지 체크 */
+	select
+		id
+	from dbo.tb_users
+	where name = #{userNm},
+	email = #{email}
+	</select>
+
+</mapper>

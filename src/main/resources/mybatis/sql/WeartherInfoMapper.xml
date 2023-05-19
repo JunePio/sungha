@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.weatherInfo.WeatherInfoMapper">
+	<select id="selectOrganizationInfo" resultType="com.gn.sungha.weatherInfo.UserInfoVO">
+		/* WeatherInfoMapper.selectOrganizationInfo - 기관정보 조회 */
+		select
+			lc.local as organizationLocal,
+			lc.local_id,
+			lc.local_nx,
+			lc.local_ny,
+			org.organization,
+			lc.organization_id
+		from dbo.TB_Local lc
+			left join dbo.tb_organization org
+			on lc.organization_id  = org.organization_id
+	</select>
+
+	<update id="updateLocalWeatherInfo" parameterType="com.gn.sungha.weatherInfo.LocalWeatherInfoVO">
+		/*parameterType="List"*/
+		/* WeatherInfoMapper.updateLocalWeatherInfo - 지역 날씨예보 저장 */
+		call dbo.update_Local_WeatherInfo(#{fcstDate}, #{fcstTime}, #{temperatureValue}, #{humidityValue}, #{organizationId}, #{localId});
+	</update>
+</mapper>

@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.board.BoardMapper">
+
+	<select id="selectBoardList" parameterType="String" resultType="com.gn.sungha.board.BoardVO">
+	/* BoardMapper.selectBoardList - 게시판정보 리스트 조회 */
+		select 
+		    rownum,
+		    qa_gubun,
+			board_id,
+			writer_id,
+			title,
+			content,
+			reg_date_time,
+			mod_date_time,
+			state
+		from (
+			select 
+				row_number() over (order by board.board_id asc) as rownum,
+				case when board.qa_gubun = '1' then '센서'
+		     		 when board.qa_gubun = '2' then '관수'
+				end qa_gubun,
+				board.board_id,
+				board.writer_id,
+				board.title,
+				board.content,
+				case when board.reg_date_time is null then ''
+		     	when board.reg_date_time = '' then ''
+	       	 	else substring(board.reg_date_time, 0, 5) || '. ' || substring(board.reg_date_time, 5, 2) || '. ' || substring(board.reg_date_time, 7, 2) || '.' 
+			    end reg_date_time,
+			    case when board.mod_date_time is null then ''
+					 when board.mod_date_time = '' then ''
+				     else substring(board.mod_date_time, 0, 5) || '. ' || substring(board.mod_date_time, 5, 2) || '. ' || substring(board.mod_date_time, 7, 2) || '.' 
+				end mod_date_time,
+				case when tbr.reply_id is null then '답변대기'
+		     		 when tbr.reply_id is not null then '답변완료'
+				end state
+			from dbo.tb_board board
+			left outer join dbo.tb_board_reply tbr
+			on tbr.board_id = board.board_id
+			where 1=1
+			<if test="searchingType != null and searchingType != '' and searchingType == 'title' and searchingContent != null and searchingContent != '' ">		
+				and lower(board.title) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'content' and searchingContent != null and searchingContent != '' ">			
+				and lower(board.content) like '%' || lower(#{searchingContent}) || '%'
+			</if>		
+		)a
+		order by ${sortColumn} ${sortType}
+		limit #{pagination.listSize} OFFSET #{pagination.startList}
+	</select>
+	
+	<select id="selectBoardListTotalCnt" parameterType="String" resultType="int">
+	/* BoardMapper.selectBoardListTotalCnt - 게시판정보 개수 조회 */
+		select
+			count(*)
+		from (
+			select 
+				row_number() over (order by board.board_id asc) as rownum,
+				board.board_id
+			from dbo.tb_board board
+			where 1=1
+			<if test="searchingType != null and searchingType != '' and searchingType == 'title' and searchingContent != null and searchingContent != '' ">		
+				and lower(board.title) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+			<if test="searchingType != null and searchingType != '' and searchingType == 'content' and searchingContent != null and searchingContent != '' ">			
+				and lower(board.content) like '%' || lower(#{searchingContent}) || '%'
+			</if>
+		group by board.board_id
+	)a	
+	</select>
+	
+	<insert id="insertBoardSave" parameterType="String">
+	/* BoardMapper.insertBoardSave - 게시판 저장 */
+		insert into dbo.tb_board
+		(
+			writer_id,	/* 작성자ID */
+			title,		/* 제목 */
+			content,	/* 내용 */
+			reg_date_time,	/* 등록일시 */
+			mod_date_time,	/* 수정일시 */
+			qa_gubun	/* 문의종류 */
+		)
+		values
+		(
+			#{writerId},
+			#{title},
+			#{content},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			#{qaGubun}
+		)
+	</insert>
+	
+	<select id="selectBoardDetail" parameterType="int" resultType="com.gn.sungha.board.BoardVO">
+	/* BoardMapper.selectBoardDetail - 게시판 상세 조회 */
+		select 
+				board.board_id,
+				board.writer_id,
+				board.title,
+				board.content,
+				board.reg_date_time,
+				board.mod_date_time,
+				board.qa_gubun
+			from dbo.tb_board board
+			where board.board_id = #{boardId}
+		order by board.reg_date_time desc
+	</select>
+	
+	<update id="updateBoardMod" parameterType="String">
+	/* BoardMapper.updateBoardMod - 게시판 수정 */
+		update dbo.tb_board
+		set
+			title = #{title},
+			content = #{content},
+			qa_gubun = #{qaGubun}		
+		where board_id = #{BoardId}
+	</update>
+	
+	<delete id="deleteBoard" parameterType="int">
+	/* BoardMapper.deleteBoard - 게시판 삭제 */
+		delete from dbo.tb_board
+		where board_id = #{boardId}
+	</delete>
+	
+	<insert id="insertBoardReply" parameterType="com.gn.sungha.board.BoardVO">
+	/* BoardMapper.insertBoardReply - 게시판 댓글 저장 */
+		insert into dbo.tb_board_reply
+		(
+			writer_id,       /* 작성자ID */
+			content,         /* 내용 */
+			reg_date_time,  /* 등록일시 */
+			mod_date_time,  /* 수정일시 */
+			board_id        /* 게시글ID */
+		)
+		values
+		(
+			#{writerId},
+			#{content},
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS'),
+			#{boardId}
+		)
+	</insert>
+	
+	<select id="getBoardReplyId" parameterType="String" resultType="int">
+		select
+			MAX(reply_id)
+		from dbo.tb_board_reply
+		where board_id = #{boardId}
+	</select>
+	
+	<select id="selectBoardReplyList" parameterType="int" resultType="com.gn.sungha.board.BoardVO">
+	/* BoardMapper.selectBoardReplyList - 게시판 댓글 목록 조회 */
+		select
+			tbr.reply_id,
+			tbr.writer_id,
+			tbr.content,
+			case when tbr.reg_date_time is null then ''
+		     	 when tbr.reg_date_time = '' then ''
+	       	 	 else substring(tbr.reg_date_time, 0, 5) || '. ' || substring(tbr.reg_date_time, 5, 2) || '. ' || substring(tbr.reg_date_time, 7, 2) || '.' || ' ' 
+	       	 	   || substring(tbr.reg_date_time, 9, 2) || ':' || substring(tbr.reg_date_time, 11, 2) || ':' || substring(tbr.reg_date_time, 13, 2)
+		    end reg_date_time,
+		    case when tbr.mod_date_time is null then ''
+				 when tbr.mod_date_time = '' then ''
+			     else substring(tbr.mod_date_time, 0, 5) || '. ' || substring(tbr.mod_date_time, 5, 2) || '. ' || substring(tbr.mod_date_time, 7, 2) || '.' || ' ' 
+			       || substring(tbr.mod_date_time, 9, 2) || ':' || substring(tbr.mod_date_time, 11, 2) || ':' || substring(tbr.mod_date_time, 13, 2)
+			end mod_date_time,
+			tbr.board_id
+		from dbo.tb_board_reply tbr
+		left outer join dbo.tb_users tu
+		on tbr.writer_id = tu.username
+		where tbr.board_id = #{boardId}
+		order by tbr.reg_date_time desc
+	</select>
+	
+	<update id="updateBoardReplyMod" parameterType="com.gn.sungha.board.BoardVO">
+	/* BoardMapper.updateBoardReplyMod - 게시판 댓글 수정 */
+		update dbo.tb_board_reply
+		set
+			content = #{content},
+			mod_date_time = to_char(to_timestamp(now()::varchar, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDDHH24MISS')
+		where reply_id = #{replyId}
+	</update>
+	
+	<delete id="deleteBoardReply" parameterType="Int">
+	/* BoardMapper.deleteBoardReply - 게시판 댓글 삭제 */
+		delete from dbo.tb_board_reply
+		where reply_id = #{replyId}
+	</delete>
+
+</mapper>	

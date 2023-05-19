@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gn.sungha.sensorInfo.SensorInfoMapper">
+
+	<!-- 센서정보 조회 -->
+	<select id="selectSensorInfoList" parameterType="com.gn.sungha.sensorInfo.SensorInfoVO" resultType="com.gn.sungha.sensorInfo.SensorInfoVO">
+		/* sensorInfoMapper.selectSensorInfoList - 센서정보 리스트 조회 */
+		select
+		    rownum,				/* 순번 */
+		    organization_id,
+		    local_id,
+		    organization,       /* 기관명*/
+		    local,              /* 지역명*/
+		    sensor,             /* 센서명*/	    
+			chip_id,		    /* Mac address */
+			sensor_id,		    /* 사용자지정장치관리ID */
+			message_interval,	/* 측정값전송시간단위(1~60분) */
+			temp,		        /* 온도 */
+			humi,		        /* 습도 */
+			conduc,		        /* 토양EC(전기전도도) */
+			ph,	                /* 수소이온농도지수 PH */
+			nitro,	            /* 질소 N */
+			phos,	            /* 인 P */
+			pota,	            /* 칼륨 K */
+			batcaprema,	        /* 배터리잔량 */
+			ip_addr,            /* MQTT Broker정보 */
+			reg_date,           /* 등록일시 */
+			reg_date_time,
+			latitude,			/* 위도 */
+			longitude			/* 경도 */
+		from
+			(
+				select
+					row_number() over (order by sen.reg_date_time desc) as rownum,
+					con.organization_id,
+		            con.local_id,
+				    org.organization,
+				    loc.local,
+				    con.sensor,
+				    sen.chip_id,
+				    sen.sensor_id,
+				    sen.message_interval,
+				    sen.temp,
+				    sen.humi,
+				    sen.conduc,
+				    sen.ph,
+				    sen.nitro,
+				    sen.phos,
+				    sen.pota,
+				    sen.batcaprema,
+				    sen.ip_addr,
+					sen.latitude,
+					sen.longitude,
+				    substring(sen.reg_date_time, 0, 5) || '.' || substring(sen.reg_date_time, 5, 2) || '.' || substring(sen.reg_date_time, 7, 2) || '. '  || substring(sen.reg_date_time, 9, 2) || ':' || substring(sen.reg_date_time, 11, 2) as reg_date,
+				    sen.reg_date_time
+				from dbo.TB_sensor sen
+				left outer join dbo.TB_sensor_control con
+				on con.sensor_id = sen.sensor_id
+				left outer join dbo.TB_local loc
+				on loc.local_id = con.local_id
+				left outer join dbo.TB_organization org
+				on org.organization_id = con.organization_id
+				where 1 = 1
+				<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+					and org.organization_id = #{searchingOrgId}
+				</if>
+				<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+					and loc.local_id = #{searchingLocalId}
+				</if>				
+				<if test="datepicker != null and datepicker != '' and datepicker1 != null and datepicker1 != ''">
+					and to_date(substring(sen.reg_date_time, 0, 9), 'YYYYMMDD')  between #{datepicker}::Date AND #{datepicker1}::Date
+				</if>
+				group by con.local_id, con.organization_id, org.organization, loc.local, con.sensor, sen.chip_id, sen.sensor_id, sen.message_interval,
+				        sen.temp, sen.humi, sen.conduc, sen.ph, sen.nitro, sen.phos, sen.pota, sen.batcaprema, sen.ip_addr, sen.reg_date_time,
+						sen.latitude, sen.longitude
+			)a
+		order by ${sortColumn} ${sortType}
+		limit #{pagination.listSize} OFFSET #{pagination.startList}
+	</select>
+	
+	<!-- 센서정보 조회 갯수-->
+	<select id="selectSensorInfoListTotalCnt" parameterType="String" resultType="int">
+	/* sensorInfoMapper.selectSensorInfoListTotalCnt - 센서정보 리스트 갯수 */
+		select
+				count(*)
+			from (
+			 		select
+					row_number() over (order by sen.sensor_id asc) as rownum,
+					con.organization_id,
+		            con.local_id,
+				    org.organization,
+				    loc.local,
+				    con.sensor,
+				    sen.chip_id,
+				    sen.sensor_id,
+				    sen.message_interval,
+				    sen.temp,
+				    sen.humi,
+				    sen.conduc,
+				    sen.ph,
+				    sen.nitro,
+				    sen.phos,
+				    sen.pota,
+				    sen.batcaprema,
+				    sen.ip_addr,
+				    substring(sen.reg_date_time, 0, 5) || '-' || substring(sen.reg_date_time, 5, 2) || '-' || substring(sen.reg_date_time, 7, 2) || ' '  || substring(sen.reg_date_time, 9, 2) || ':' || substring(sen.reg_date_time, 11, 2) as reg_date
+				from dbo.TB_sensor sen
+				left outer join dbo.TB_sensor_control con
+				on con.sensor_id = sen.sensor_id
+				left outer join dbo.TB_local loc
+				on loc.local_id = con.local_id
+				left outer join dbo.TB_organization org
+				on org.organization_id = con.organization_id
+				where 1 = 1
+				<if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+					and org.organization_id = #{searchingOrgId}
+				</if>
+				<if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+					and loc.local_id = #{searchingLocalId}
+				</if>
+				<if test="datepicker != null and datepicker != '' and datepicker != 'total' and datepicker1 != null and datepicker1 != '' and datepicker1 != 'total' ">
+					and to_date(substring(sen.reg_date_time, 0, 9), 'YYYYMMDD')  between #{datepicker}::Date AND #{datepicker1}::Date
+				</if>
+				group by con.local_id, con.organization_id, org.organization, loc.local, con.sensor, sen.chip_id, sen.sensor_id, sen.message_interval,
+				         sen.temp, sen.humi, sen.conduc, sen.ph, sen.nitro, sen.phos, sen.pota, sen.batcaprema, sen.ip_addr, sen.reg_date_time
+			)a
+	</select>
+	
+	<!-- 센서정보 상세조회 -->
+	<select id="selectSensorInfoDetail" parameterType="String" resultType="com.gn.sungha.sensorInfo.SensorInfoVO">
+	/* sensorInfoMapper.selectSensorInfoDetail - 센서정보 계측데이터 상세 조회 */
+		select
+		    organization_id,
+		    local_id,
+		    sensor_id,
+		    sensor,
+			temp,
+			humi,
+			ph,
+			conduc,
+			nitro,
+			phos,
+			pota,
+			batcaprema,
+			reg_date,
+			reg_date_time,
+			temp_value_min,
+			temp_value_max,
+			humi_value_min,
+			humi_value_max,
+			conduc_value_min,
+			conduc_value_max,
+			ph_value_min,
+			ph_value_max,
+			nitro_value_min,
+			nitro_value_max,
+			phos_value_min,
+			phos_value_max,
+			pota_value_min,
+			pota_value_max,
+			batcaprema_value_min,
+			batcaprema_value_max
+		from(
+			select
+			    con.organization_id,
+		        con.local_id,
+			    sen.sensor_id,
+			    con.sensor,
+		    	sen.temp,
+				sen.humi,
+				sen.ph,
+				sen.conduc,
+				sen.nitro,
+				sen.phos,
+				sen.pota,
+				sen.batcaprema,
+				substring(sen.reg_date_time, 0, 5) || '-' || substring(sen.reg_date_time, 5, 2) || '-' || substring(sen.reg_date_time, 7, 2) || ' '  || substring(sen.reg_date_time, 9, 2) || ':' || substring(sen.reg_date_time, 11, 2) as reg_date,
+				sen.reg_date_time,
+				con.temp_value_min,
+				con.temp_value_max,
+				con.humi_value_min,
+				con.humi_value_max,
+				con.conduc_value_min,
+				con.conduc_value_max,
+				con.ph_value_min,
+				con.ph_value_max,
+				con.nitro_value_min,
+				con.nitro_value_max,
+				con.phos_value_min,
+				con.phos_value_max,
+				con.pota_value_min,
+				con.pota_value_max,
+				con.batcaprema_value_min,
+				con.batcaprema_value_max
+			from dbo.TB_sensor sen
+			left outer join dbo.TB_sensor_control con
+				on con.sensor_id = sen.sensor_id
+			) a
+			where a.sensor_id = #{sensorId}
+			and a.reg_date_time = #{regDate}
+	</select>
+	
+	<select id="selectSensorControlInfoDetail" parameterType="String" resultType="com.gn.sungha.sensorInfo.SensorInfoVO">
+	/* sensorInfoMapper.selectSensorControlInfoDetail - 센서정보 계측데이터 임계치 조회 */
+			select
+			    sensor_id,
+				temp_value_min,
+				temp_value_max,
+				humi_value_min,
+				humi_value_max,
+				conduc_value_min,
+				conduc_value_max,
+				ph_value_min,
+				ph_value_max,
+				nitro_value_min,
+				nitro_value_max,
+				phos_value_min,
+				phos_value_max,
+				pota_value_min,
+				pota_value_max,
+				batcaprema_value_min,
+				batcaprema_value_max
+			from dbo.tb_sensor_control
+	where sensor_id = #{sensorId}
+	</select>
+	
+	<!-- 센서항목별(시간대) 센서정보 조회 - 꺽은선 그래프) -->
+	<select id="selectSensorInfoSearchData" parameterType="String" resultType="com.gn.sungha.sensorInfo.SensorInfoVO">
+	/* sensorInfoMapper.selectSensorInfoSearchData - 센서정보 항목별 계측데이터 조회 */
+	        select  
+	            row_number() over (order by sen.sensor_id asc) as rownum,			    
+				org.organization_id,
+				org.organization,
+				loc.local_id,
+				loc.local,
+				con.sensor_id,
+				con.sensor,
+                sen.reg_date_time,
+	            <choose>
+	            	<when test="searchingSensorGubun == 'temp' ">
+	            		sen.temp,
+	            	</when>
+	            	<when test="searchingSensorGubun == 'humi' ">
+	            		sen.humi,
+	            	</when>
+	            	<when test="searchingSensorGubun == 'ph' ">
+	            		sen.ph,
+	            	</when>
+	            	<when test="searchingSensorGubun == 'conduc' ">
+	            		sen.conduc,
+	            	</when>
+	            	<when test="searchingSensorGubun == 'nitro' ">
+	            		sen.nitro,
+	            	</when>
+	            	<when test="searchingSensorGubun == 'phos' ">
+	            		sen.phos,
+	            	</when>
+	            	<when test="searchingSensorGubun == 'pota' ">
+	            		sen.pota,
+	            	</when>
+	            	<when test="searchingSensorGubun == 'batcaprema' ">
+	            		sen.batcaprema,
+	            	</when>
+	            </choose>
+		    substring(sen.reg_date_time, 0, 5) || '-' || substring(sen.reg_date_time, 5, 2) || '-' || substring(sen.reg_date_time, 7, 2) || ' '  || substring(sen.reg_date_time, 9, 2) || ':' || substring(sen.reg_date_time, 11, 2) as reg_date
+        from dbo.TB_sensor sen
+        left outer join dbo.TB_sensor_control con
+		on con.sensor_id = sen.sensor_id
+		left outer join dbo.TB_local loc
+		on loc.local_id = con.local_id
+		left outer join dbo.TB_organization org
+		on org.organization_id = con.organization_id
+        where 1 = 1 
+        	and sen.reg_date_time between to_char(now() - interval '7' day, 'YYYYMMDDHH24MISS') and to_char(now(), 'YYYYMMDDHH24MISS')
+	   <if test="searchingOrgId != null and searchingOrgId != '' and searchingOrgId != 'total' ">
+			and org.organization_id = #{searchingOrgId}
+	   </if>
+	   <if test="searchingLocalId != null and searchingLocalId != '' and searchingLocalId != 'total' ">
+			and loc.local_id = #{searchingLocalId}
+	   </if>
+	   <if test="searchingSensorId != null and searchingSensorId != '' and searchingSensorId != 'total' ">
+			and con.sensor_id = #{searchingSensorId}
+	   </if>
+	   order by sen.reg_date_time desc
+	</select>
+	
+</mapper>

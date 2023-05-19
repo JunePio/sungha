@@ -1,0 +1,88 @@
+body {
+    text-align: center;
+    color: #FFF;
+    margin: 0px;
+}
+div#wapper {
+    width: 100%;
+    text-align: left;
+    height: 100%;
+    margin: 0 auto;
+}
+/*header,*/ footer, nav, aside, section {
+                border: 0px solid #999;
+                margin: 0px;
+                padding: 0px;
+            }
+header {
+    height: 0px;
+}
+nav, section, aside {
+    float: left;
+    height: 100%;
+    margin: 0px;
+}
+nav {
+    position: relative;
+    z-index: 2;
+    background-color: #219C76;
+    width: 80px;
+}
+section {
+    left: 80px;
+    width: calc(100vw - 100px);
+    min-height: calc(100vh - 99px);
+}
+aside {
+    z-index: 3;
+    /*background-color: goldenrod;*/
+    /*width: 100px;*/
+    position: absolute;
+    top: 40px;
+    right: 0px;
+    background-color: #F7F8FA;
+    border: 0px solid #999;
+    width: 20em;
+    height: calc(100vh - 75px);
+    padding: 1em;
+    /*overflow: scroll;*/
+}
+footer {
+    height: 50px;
+    /*background-color: blue;*/
+    position: relatiev;
+    clear: both;
+}
+article {
+    width: 100%;
+    margin: 20px;
+    background-color: #999;
+}
+#navMenu ul{
+    margin-top: 80px;
+    margin-left: -40px;
+}
+#navMenu ul li {
+    list-style: none;
+    color: white;
+    float: left;
+    line-height: 44px;
+    vertical-align: center;
+    text-align: center;
+    /*margin: 0px -20px;*/
+}
+#navMenu a {
+    text-decoration:none;
+    color: rgba(255, 255, 255, 0);
+    display: block;
+    width: 250px;
+    height: 44px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: "Noto Sans KR";
+    letter-spacing: -1.5%;
+}
+#navMenu a:hover {
+    background-color: #117757;
+    color: white;
+}
