@@ -8,7 +8,7 @@
 	<meta charset="UTF-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>전체화면</title>
+	<title>전체화면git</title>
 
 	<script src="https://code.jquery.com/jquery-3.4.1.js"></script>
 
